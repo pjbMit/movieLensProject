@@ -1,0 +1,85 @@
+---
+title: "README"
+author: "By PJBrown"
+date: "6/12/2019"
+output: html_document
+student: Philip Brown
+email: Phil@pjb3.com     (pjbMit@pjb3.com)
+github: https://github.com/pjbMit
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This is the README file for my Movie Lens project for the Capstone Course
+in the HarvardX Data Science Certificate Program.
+
+Student: Philip Brown
+email: Phil@pjb3.com
+github: https://github.com/pjbMit
+
+The project was created in the RStudio environment 
+using Rstudio Version 1.1.442 
+on a Macintosh; Intel Mac OS X 10_14_5
+
+R version 3.5.1 (2018-07-02)  
+nickname       Feather Spray
+
+The project uses packrat for dependancy management of all installed libraries.
+Turn on packrat's "automatically snapshot local changes" feature 
+from the "tools... Version Control ... Project Setup...Packrat..." menu
+to automatically detect and create a new packrat snapshot everytime a library is added or updated.
+
+To set up the project in git:
+   1) On gitHub, create a new empty repo.  
+   2) Then copy the github https or ssh location of the repo.
+   3) Open a command line in the local project directory and run a command such as:
+        git remote add origin git@github.com:pjbMit/movieLensProject.git
+        # Sets the new remote
+        git remote -v
+        # Verifies the new remote URL
+    4) Commit files to your local git repository
+    5) Now push those changes,  via 
+        git push -u origin master
+        # Pushes the changes in your local repository up to the remote repository you specified as the origin
+    6) You can now use the 'tools... version control...  commit" 
+        and "tools.. version control... Push Branch" menu options to make local commits, and then push them to github.
+
+
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+plot(cars)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+---------------------------
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
