@@ -40,7 +40,14 @@ Turn on packrat's "automatically snapshot local changes" feature
 from the "tools... Version Control ... Project Setup...Packrat..." menu
 to automatically detect and create a new packrat snapshot everytime a library is added or updated.
 
-For more packrat info see:  https://rstudio.github.io/packrat/walkthrough.html
+For more packrat info see: 
+
+  https://rstudio.github.io/packrat/walkthrough.html and 
+  
+  https://rstudio.github.io/packrat/rstudio.html and
+  
+  https://rstudio.github.io/packrat/
+  
 
 To set up the project in git:
 
