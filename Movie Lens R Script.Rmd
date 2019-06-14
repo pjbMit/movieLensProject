@@ -1,13 +1,13 @@
 ---
-title: "Machine Learning Harvard Capstone Movie Lens Project R Notebook"
+title: "HarvardX Movie Lens R Script"
 output: html_notebook
 ---
 
-### Machine Learning Harvard Capstone Movie Lens Project R Notebook
-
 June 2019
 
-This is my Move Lens project for the Capstone Course in the HarvardX Data Science Certificate Program.
+This is my R Script for the Movie Lens project.
+
+This project is part of the HarvardX Data Science Capstone Course.
 
 Student: Philip Brown
 email: Phil@pjb3.com
@@ -24,6 +24,28 @@ See the README.Rmd or README.html files for more information on the environment 
 
 For questions, email me:   pjbMit@pjb3.com  , and I'll gladly respond promptly.
 
+----------------------------
+
+
+R script = commented code 
+Rmd = text + code + plots 
+PDF = knit from Rmd
+
+----------------------------
+
+Use multiple models, and see if results improve.  
+
+Use Regularization to limit effect of small data points
+
+Use movie effect, user effect & genre effect to improve results.
+
+Use cross-validation.
+
+Show plots to visualize results.
+ 
+Don't forget the github link:  https://github.com/pjbMit/movieLensProject
+
+===========
 
 ---------------------------
 1) Develop your algorithm using the edx set. 
@@ -41,7 +63,7 @@ and then a subset is selected by running this code which is given in the assignm
 
 Data setup
 
-I needed to make two basic changes:
+I needed to make two basic changes to the script that was provided:
 First) I needed to use a different repository to load the libraries, because repo specified didn't work on my mac.
 Second) This R Code crashed RStudio repeatedly, so I created a function and added code to save objects as files,
         so that I could save intermediate results into a file, and then reload them if and as necessary if R crashed.
@@ -111,8 +133,9 @@ ratings <- read.table(text = gsub("::", "\t", readLines(unzip(dl, "ml-10M100K/ra
 ## This is used because RSTUDIO crashed repeatedly when I ran the script, 
 ## so this allowed me to save intermediate results into files, and reload them later
 ## to continue processing.
+
 saveProgress <- TRUE
-#saveProgress <- FALSE  
+saveProgress <- FALSE  # Set to false, and intermediate files WILL NOT be saved.
 
 saveWork(t1,ratings,saveProgress)
 
@@ -158,6 +181,8 @@ rm(dl, ratings, movies, test_index, temp, movielens, removed)
 #recreate the object using code similar to:
 #    objectName <- load(file)
 #without having to download and process the data again.
+
+saveProgress <- TRUE
 saveWork(edxFile,edx,saveProgress)
 saveWork(validationFile,validation,saveProgress)
 
@@ -166,13 +191,7 @@ rm(t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,fileName,isMac,repo)
 
 ```
 
-## Note: Because I had to run the code line-by-line, the output doesn't show up in the output file produced by the RMD.
-## Please don't penalize me for this side effect of RSTUDIO crashing when I ran the whole script at once.
-
-
-#### OUT LINE   ######
-
-General approach:
+## General approach:
 
 For many approaches, I will first try on a very small data set, just to get the code working,
 the re-run on a medium sized data set, and then when I am satisfied, run on the full edx training set.
@@ -182,8 +201,7 @@ Similarly, initially I will NOT do full cross-validation, but once I have code w
 SET UP libraries and enable turn multi-core processing 
 for some of operations used by the caret package.
 
-
-Now the edx object and the validation object are both saved on the file system, so as a short-cut I can reload
+Now that the edx object and the validation object are both saved on the file system, so as a short-cut I can reload
 those objects from disk to run my code, rather than having to download and process the raw data multiple times
 during development.
 
@@ -325,9 +343,9 @@ again.
 ```{r}
 
 loadFromFile <- FALSE
-loadFromFile <- TRUE  ## Comment out this line if we don't want to reload the ojbects from files
+#loadFromFile <- TRUE  ## Comment out this line if we don't want to reload the ojbects from files
 
-# load the data from the saved file
+# load the data from the saved file, if the loadFromFile parameter is true. Otherwise, no-op.
 edx <- restoreEdx(loadFromFile)
 validation <- restoreValidation(loadFromFile)
 
@@ -348,7 +366,7 @@ Run on the full set of data once development is completed, and it works.
 # Later, re-run the code using the full training set once everything works.
 
 inDevelopment <- FALSE # TRUE/FALSE value to only use a subset of data during development
-inDevelopment <- TRUE  # To use the full training set, comment out this line and re-run the code.
+#inDevelopment <- TRUE  # To use the full training set, comment out this line and re-run the code.
  
 
 data <- getData(edx,inDevelopment)  # Get the training data, or a subset of it.
@@ -492,133 +510,53 @@ rmse_results %>% knitr::kable()
 #free memory
 rm(data,edx,validation,predicted_ratings,user_avgs,movie_avgs,movie_reg_avgs)
 
+```
+
+
+Additional examination, and trying different models.
+```{r}
+if(!require(randomForest)) install.packages("randomForest", repos = repo)
+if(!require(inTrees)) install.packages("inTrees", repos = repo) #Used by rfRules model
+if(!require(xgboost)) install.packages("xgboost", repos = repo)
+if(!require(pROC)) install.packages("pROC", repos = repo)  #provides the roc function.
 
 #Determine factors that contribute the most variablity, and show a heatmap of a random sample of rows, ordered
 #from highest variable factor to least variable.
 
 x<-as.matrix(myTrain[5:23])
-glimpse(x)
 sds <- colSds(x, na.rm = TRUE)
 o <- order(sds, decreasing = TRUE)[1:19]
 dim(x)
-x2 <- as.matrix(getSubset(x[,o],myTrain$rating,0.02))
+#Draw a heatmap, using a subset of the data
+x2 <- as.matrix(getSubset(x[,o],myTrain$rating,0.05))
 dim(x2)
-heatmap(x2[,o], col = RColorBrewer::brewer.pal(11, "Spectral"))
-apply(x2[,o],MARGIN=2,mean)
+sds2 <- colSds(x2, na.rm = TRUE)
+o2 <- order(sds2, decreasing = TRUE)[1:19]
+heatmap(x2[,o2], col = RColorBrewer::brewer.pal(11, "Spectral"))
+o2
+sds2
+apply(x2,MARGIN=2,mean)
+colnames(x2)
 
-top <- x[1,1:5]
+top <- x2[1,2:5]
 cols <- names(top)
-
-
-
-```
-
-Now we're going to try training on a subset of the data, using a handful of the columns.
-
-
-```{r}
-train_small <- myTrain %>% 
-  group_by(movieId) %>%
-  filter(n() >= 1 | movieId == 3252) %>% ungroup() %>% 
-  group_by(userId) %>%
-  filter(n() >= 10) %>% ungroup()
-
-y <- train_small %>% 
-  mutate(userId = as.numeric(userId),movieId = as.numeric(movieId)) %>%
-  select(userId, movieId, rating) %>%
-  spread(movieId, rating) %>%
-  as.matrix()
-dim(y)
-glimpse(y)
-
-y[is.na(y)] <- 0 #Replace NA with zero
-#y <- matrix(sapply(y,as.numeric),2) #And make values numeric
-
-
-# Add row names
-rownames(y)<- y[,1]
-y <- y[,-1]
-#Add col names
-movie_titles <- myTrain %>% 
-  select(movieId, titleId) %>%
-  distinct()
-colnames(y) <- with(movie_titles, titleId[match(colnames(y), movieId)])
-colnames(y)
-rownames(y)
-
-
-
-#and convert them to residuals by removing the column and row effects:
-y <- sweep(y, 2, colMeans(y, na.rm=TRUE))
-y <- sweep(y, 1, rowMeans(y, na.rm=TRUE))
-sum(is.na(y))
-dim(y)
-
-pca <- prcomp(y)
-#cor(x, use="pairwise.complete")
-#The  q  vectors are called the principal components and they are stored in this matrix:
-dim(pca$rotation)
-
-#While the  p, or the user effects, are here:
-dim(pca$x)
-
-pcs <- data.frame(pca$rotation, name = str_trunc(colnames(y), 30))
-pcs %>% select(name, PC1) %>% arrange(PC1) %>% slice(1:20)
-pcs %>% select(name, PC1) %>% arrange(desc(PC1)) %>% slice(1:20)
-
-                                
-pc <- 1:length(pca$sdev)   
-qplot(pc, pca$sdev)
-var_explained <- cumsum(pca$sdev^2 / sum(pca$sdev^2))
-
-qplot(pc, var_explained)
-
-
-s <- svd(y)
-names(s)
-
-y_svd <- s$u %*% diag(s$d) %*% t(s$v)
-max(abs(y - y_svd))
-
-#Free memory
-rm(pca,pcs,train_small,y)
-rm(s,y_svd)
-
-## recommenderlab package is good                                    
-
-
-
-```
-
-
-
-```{r}
-if(!require(randomForest)) install.packages("randomForest", repos = repo)
-if(!require(inTrees)) install.packages("inTrees", repos = repo) #Used by rfRules model
-
-
-#recipes package
-
-
-## https://machinelearningmastery.com/tuning-machine-learning-models-using-the-caret-r-package/
-## 
-## https://rpubs.com/chengjiun/52658
-
-## https://machinelearningmastery.com/feature-selection-with-the-caret-r-package/
-
-#cols
+#These are the attributes that add the most variability to the data
+cols
 
 colNames <- names(myTrain)[1:7]
-colNames[3] <- "rating"  #Remove titleId, and replace it with "rating"
-colNames
 
+#ReOrder columns, removing titleID, and putting ratings as the first column
+tmp2 = names(myTrain)[1]
+tmp3 = names(myTrain)[2]
+colNames[1] <- "rating"  #Remove titleId, and replace it with "rating"
+colNames[2] <- tmp2
+colNames[3] <- tmp3
+
+#Show order of columns
 names(myTrain[colNames])
 
-# https://www.rdocumentation.org/packages/caret/versions/6.0-84/topics/train
-# https://www.rdocumentation.org/packages/caret/versions/4.47/topics/train
-
 # See list of models available in caret
-names(getModelInfo())
+#names(getModelInfo())
 
 # prepare training scheme  ##number and repeats set lower for faster executiion
 
@@ -627,6 +565,7 @@ myTrain <- myTrain[colNames]
 trainControl <- trainControl(method="repeatedcv", number=5, repeats=2)
 
 metric <- "RMSE"
+metric <- "rmse"
 
 # CART
 set.seed(7)
@@ -637,15 +576,9 @@ fit.model1 <- train(rating ~ ., data =myTrain, method="rpart", metric = metric, 
 set.seed(7)
 fit.model2 <- train(rating~., data=myTrain, method="treebag", metric = metric, maximize = FALSE, na.action = na.omit,
                 trControl=trainControl)
-#fit.model2 <- train(rating~., data=myTrain, method="rf", metric = metric, maximize = FALSE,na.action = na.omit,
-#               trControl=trainControl)
-
-#fit.model3 <- train(rating~., data=myTrain, method="rfRules", metric = metric, maximize = FALSE, na.action = na.omit,
-#                trControl=trainControl)
-
 
 # collect resamples
-results <- resamples(list(CART=fit.model1, RF=fit.model2))
+results <- resamples(list(RPART=fit.model1, TREEBAG=fit.model2))
 
 # summarize differences between models
 summary(results)
@@ -661,11 +594,6 @@ dotplot(results, scales=scales)
 # pairwise scatter plots of predictions to compare models
 splom(results)
 
-# difference in model predictions
-diffs <- diff(results)
-# summarize p-values for pairwise comparisons
-summary(diffs)
-
 
 # 
 # # Create a Random Forest model with default parameters
@@ -673,231 +601,30 @@ summary(diffs)
 # model1
 # print(model1)
 
-dart.parm <- list(booster = "dart", rate_drop = 0.1, nthread = 4, eta = 0.1, max_depth = 3, subsample = 1, eval_metric = "RMSE")
-dart <- xgboost(data = myTrain, label = names(myTrain), params = dart.parm, nrounds = 500, verbose = 0, seed = 2017)
-pred1 <- predict(dart, as.matrix(train[, -1]))
-pred2 <- predict(dart, as.matrix(test[, -1]))
-roc(as.factor(train$DEFAULT), pred1)
+dart.parm <- list(booster = "dart", rate_drop = 0.1, nthread = 4, eta = 0.1, max_depth = 3, subsample = 1, eval_metric = "rmse")
+rowNames <- rownames(myTrain)
+dart <- xgboost(data = as.matrix(myTrain[,-1]), label = rownames(myTrain[,-1]), params = dart.parm, nrounds = 50, verbose = 0, seed = 2017)
+colNames <- names(myTrain[, -1])
+colNames
+pred1 <- predict(dart, as.matrix(myTrain[, -1]))
+pred2 <- predict(dart, as.matrix(myTest[colNames]))
+roc(as.factor(myTrain$rating), pred1)
 # Area under the curve: 0.7734
-roc(as.factor(test$DEFAULT), pred2)
+roc(as.factor(myTest$rating), pred2)
 # Area under the curve: 0.6517
 
-
-# 
-# # calculate correlation matrix
-# correlationMatrix <- cor(edx[,c(1,2,4,6)])
-# # summarize the correlation matrix
-# print(correlationMatrix)
-# # find attributes that are highly corrected (ideally >0.75)
-# highlyCorrelated <- findCorrelation(correlationMatrix, cutoff=0.5)
-# # print indexes of highly correlated attributes
-# print(highlyCorrelated)
-
-
-## Try to reproduce the party::ctree result with trainning subsample
-
-
-
-########################################
-## Scratch Pad -- don't use code beyond here.
-########################################
-
-# GIVE UP ON USING pcaNNet, and use more conventional approaches like Random Forest.
-# percent <- 0.005
-# df<-getDf(percent)
-# n<-length(df[,1])
-
-# formula <- rating ~ userId + movieId + timestamp + title + genres 
-# fit.ctree <- train(formula, data=df,method='ctree',tuneGrid=expand.grid(mincriterion=0.95))
-# ctreeVarImp = varImp(fit.ctree)
 
 ##ctree2 with CV
   fitControl <- trainControl(method = 'cv', number=6,summaryFunction=defaultSummary)
   set.seed(123)
-  Grid <- expand.grid(maxdepth = seq(15, 50,5))
+  Grid <- expand.grid(maxdepth = seq(10, 30,5),mincriterion=0.95)
 
-  formula <- rating ~ userId + movieId + timestamp + title + genres
-  fit.ctree2CV <- train(formula, data=df, method = 'ctree2', trControl=fitControl,tuneGrid=Grid,metric='RMSE')
+  formula <- rating ~   userId + movieId + Drama + Comedy + Action
+  fit.ctree2CV <- train(formula, data=myTrain, method = 'ctree2', trControl=fitControl,tuneGrid=Grid,metric='RMSE')
+  print(fit.ctree2CV)
+  predict <- predict(fit.ctree2CV, as.matrix(myTest[c("userId","movieId","Drama","Comedy","Action")]))
+  rmse <- myRMSE(myTest$rating,predict)
+  rmse
+  #results <- resamples(list(CTREE2=fit.ctree2CV))
 
 ```
-
-The code below is a useful utility that shows you the objects in memory, and how large they are.
-Courtesy of stack overflow  
-( https://stackoverflow.com/questions/1358003/tricks-to-manage-the-available-memory-in-an-r-session ) 
-```{r}
-# improved list of objects
-.ls.objects <- function (pos = 1, pattern, order.by,
-                        decreasing=FALSE, head=FALSE, n=5) {
-    napply <- function(names, fn) sapply(names, function(x)
-                                         fn(get(x, pos = pos)))
-    names <- ls(pos = pos, pattern = pattern)
-    obj.class <- napply(names, function(x) as.character(class(x))[1])
-    obj.mode <- napply(names, mode)
-    obj.type <- ifelse(is.na(obj.class), obj.mode, obj.class)
-    obj.prettysize <- napply(names, function(x) {
-                           format(utils::object.size(x), units = "auto") })
-    obj.size <- napply(names, object.size)
-    obj.dim <- t(napply(names, function(x)
-                        as.numeric(dim(x))[1:2]))
-    vec <- is.na(obj.dim)[, 1] & (obj.type != "function")
-    obj.dim[vec, 1] <- napply(names, length)[vec]
-    out <- data.frame(obj.type, obj.size, obj.prettysize, obj.dim)
-    names(out) <- c("Type", "Size", "PrettySize", "Length/Rows", "Columns")
-    if (!missing(order.by))
-        out <- out[order(out[[order.by]], decreasing=decreasing), ]
-    if (head)
-        out <- head(out, n)
-    out
-}
-
-# shorthand
-lsos <- function(..., n=10) {
-    .ls.objects(..., order.by="Size", decreasing=TRUE, head=TRUE, n=n)
-}
-
-lsos()
-```
-
-
-
-
-
-My notes:
-
-Don't use lm on huge datasets. Look at the alternatives using movie_avgs and user_avgs in the lectures.
-
-34.7.5 Modeling movie effects
-
-Don't use lm_fit with huge amounts of data. Checkout 34.7.5 Modeling movie effects in EDXdatasciencebook.pdf for an alternative.
-
-Use Genres to improve RMSE scores.
-
-https://courses.edx.org/courses/course-v1:HarvardX+PH125.9x+2T2018/discussion/forum/1ae77f8b04e1c45e4b425cab952e4519ac2749f0/threads/5c7ac73b58adcb0994003491
-
-
-R script = commented code 
-Rmd = text + code + plots 
-PDF = knit from Rmd
-
-Test out tidyr::separate_rows(edx, genres, sep = "|") on a very small subset of edx and see what it is doing..
-
-
-================
-So I just finished up the machine learning class and started this one. I started on my project and have calculated and used b_i and b_u to inform my prediction. I was expecting to have to do more, but by rmse is already below 8.7, which exceeds our target. Have I messed something up? Will I be punished for having code that doesn't do everything the lessons did (regularization, genres, etc)?
-
-Hi, You can try different methods and select one with the best performances with a reasonable explanation.
-
-
-I just finished my analysis using the same two parameters, and was wondering if something was wrong as those two produce a reasonably good model per the rubric. I was going over the code time and again to make sure everything is right, and it appears to be. I am glad I am not the only one. For the record, I implemented regularization as well, but the improvement is not significant.
-
-Don't use lm on huge datasets. Look at the alternatives using movie_avgs and user_avgs in the lectures.
-
-One tip from me is for the genre effect. It is important to note that each user has a different genre effect. Note also that each movie has different genres. Finally and most importantly, treat genres as independent. That is, if a movie is having Romance|Comedy, then treat it as having both romance and comedy rather than Romance|Comedy as one unit. This is due to sparseness of the data. If you treat each combination of the genre as unique then there will be many genres and very few ratings in each genre. This will not give you a robust estimate.
-
-Using this it was possible for me to go below 0.85 RMSE.                       
-
-I used most of the same methods. I personally could have spent more time on the regularization, but my first guess at lambda got me under the the required RMSE so I called it good. One of my reviewers called me on it saying It was dumb luck and i should have used cross validation (they were right) but they gave me full points.
-
-Look at the rubric and see what you are being graded against. There isn't a section for originality. So dont sweat it too much. Again save the fear for the choose your own project. I'm waiting on my staff review and its nerve racking.
-
-------------------------------
-http://factominer.free.fr/factomethods/multiple-factor-analysis.html
-
-res = MFA(wine, group=c(2,5,3,10,9,2), type=c("n",rep("s",5)), ncp=5, name.group=c("origin","odor","visual","odor.after.shaking", "taste","overall"), num.group.sup=c(1,6))
-#wine: the data set used
-#group: a vector indicating the number of variables in each group
-#type: the type of the variables in each group. "s" for scaled continuous variables, "c" for centered (unscaled) continuous variables and "n" for categorical variables
-#ncp: number of dimensions kept in the result
-#name.group: names of the groups
-#num.group.sup: indexes of the supplementary groups
-
-
-```{r}
-
-
-#if you want to see the objects within a function, you have to use: lsos(pos = environment()), otherwise it'll only show #global variables. To write to standard error: write.table(lsos(pos=environment()), stderr(), quote=FALSE, sep='\t')
-
-#I use the data.table package. With its := operator you can :
-
-# Add columns by reference
-# Modify subsets of existing columns by reference, and by group by reference
-# Delete columns by reference
-# None of these operations copy the (potentially large) data.table at all, not even once.
-# 
-# Aggregation is also particularly fast because data.table uses much less working memory.
-#
-#  https://www.gastonsanchez.com/visually-enforced/how-to/2012/06/17/PCA-in-R/
-
-## Use MCA to detemine which generes have the most influence
-# Multiple Correspondence Analysis (MCA)
-
-#Similar to PCA, but useful for categorical data.
-
-
-# http://factominer.free.fr/factomethods/multiple-correspondence-analysis.html
-
-
-#Here are some models to consider
-
-#Sparse Partial Least Squares
-
-#  method = 'spls'
-#Type: Regression, Classification
-
-#Tuning parameters:
-
-#K (#Components)
-#eta (Threshold)
-#kappa (Kappa)
-#Required packages: spls
-#
-#Linear Regression with Stepwise Selection
-
-#   method = 'leapSeq'
-# Type: Regression
-# 
-# Tuning parameters:
-# 
-# nvmax (Maximum Number of Predictors)
-# Required packages: leaps
-# 
-# Linear Regression with Stepwise Selection
-# 
-#   method = 'lmStepAIC'
-# Type: Regression
-# 
-# No tuning parameters for this model
-# 
-# Required packages: MASS
-```
-
-----------------------------
-
-
- 
-Don't forget the github link:   https://github.com/satyajitpatra1976/Capstone_PH125.9x
-
-https://rafalab.github.io/dsbook/large-datasets.html#dimension-reduction
-
-===========
-
-
-
-
-Do a PCA to determie best predictors...
-
-Check to see if they are correllated, and remove if they are.
-
-Use multiple models, and see if results improve.  Use an ensemble approach.
-
-Tune parameters using cross-validation.
-
-Use Regularization to limit effect of small data points
-
-Use movie effect, user effect & genre effect to improve results.
-
-Show plots to visualize results.
-
-
-
-
