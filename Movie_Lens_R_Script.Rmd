@@ -114,7 +114,7 @@ consuming processing tasks.
 #as opposed to running in this script.
 
 runningInScript <-TRUE # TRUE/FALSE value to skip portions of the script,or load from files if running the report.
-runningInScript <-FALSE  # uncomment this line when pasting this code to the Report Rmd file.
+#runningInScript <-FALSE  # uncomment this line when pasting this code to the Report Rmd file.
 
 loadFromFile <- FALSE
 loadFromFile <- TRUE  ## Comment out this line if we don't want to reload the ojbects from files
@@ -126,8 +126,8 @@ load_edx_and_validation <- FALSE
 # set a flag to FALSE to make this script only use a small subset of the training data.
 # Later, once everything works, re-run the code with this value set to TRUE to use the full training set.
 
-inDevelopment <- FALSE # TRUE/FALSE value to only use a subset of data during development
-#inDevelopment <- TRUE  # To use the full training set, comment out this line and re-run the code.
+#inDevelopment <- FALSE # TRUE/FALSE value to only use a subset of data during development
+inDevelopment <- TRUE  # To use the full training set, comment out this line and re-run the code.
 
 myTrainFileName <- "~/movieLensMyTrain.rds"
 myTestFileName  <- "~/movieLensMyTest.rds"
@@ -197,11 +197,40 @@ With these two work-arounds, I was able to load and process all of the data with
 # Create edx set and validation set
 #
 
-# Note: this process could take a couple of minutes
+##Start by defining two functions that can restore previously saved results from the local filesystem.
 
-if(runningInScript){
+
+#Function to load the edx object from a saved file.
+#This allows faster re-runs of the code, by avoiding downloading and re-processing
+#the data through each development iteration.
+restoreEdx <- function(loadFromFile){
+    if(loadFromFile){
+        edxFile <- "~/edxFile.rds"
+        edx <<- readRDS(edxFile)
+    }
+    edx
+}
+
+#Function to load the validation object from a saved file.
+#This allows faster re-runs of the code, by avoiding downloading and re-processing
+#the data through each development iteration.
+restoreValidation <- function(loadFromFile){
+    if(loadFromFile){
+        validationFile <- "~/validationFile.rds"
+        validation <<- readRDS(validationFile)
+    }
+    validation
+}
+
+
+# Note: this process could take a couple of minutes
+#Download the 10M row movie lens data set, and process the data.
+#If we have already processed the data, then if the boolean flags are
+#set appropriately, save time by skipping the download and data processing,
+#and simply load pre-calculated results that were saved to the local file system.
+if(runningInScript && loadFromFile == FALSE){
     #runningInScript
-    print("runningInScript is TRUE")
+    print("runningInScript is TRUE, and loadFromFile is FALSE")
     # Create a bunch of file names in my directory to save intermediate results to files
     t1 <- "~/movieLens1.rds"
     t2 <- "~/movieLens2.rds"
@@ -288,6 +317,11 @@ if(runningInScript){
     rm(t1,t2,t3,t4,t5,t6,t7,t8,t9,t10)
 }
 
+if((runningInScript && loadFromFile == TRUE) || (!runningInScript)){
+    restoreEdx(loadFromFile)
+    restoreValidation(loadFromFile)
+} 
+
 ```
 
 ## General approach:
@@ -306,28 +340,6 @@ during development.
 
 ```{r Define_Functions}
 #Defines many of the functions that the script calls
-
-#Function to load the edx object from a saved file.
-#This allows faster re-runs of the code, by avoiding downloading and re-processing
-#the data through each development iteration.
-restoreEdx <- function(loadFromFile){
-    if(loadFromFile){
-        edxFile <- "~/edxFile.rds"
-        edx <- readRDS(edxFile)
-    }
-    edx
-}
-
-#Function to load the validation object from a saved file.
-#This allows faster re-runs of the code, by avoiding downloading and re-processing
-#the data through each development iteration.
-restoreValidation <- function(loadFromFile){
-    if(loadFromFile){
-        validationFile <- "~/validationFile.rds"
-        validation <- readRDS(validationFile)
-    }
-    validation
-}
 
 
 #Now define some utility functions and functions used to preProcess the data.
