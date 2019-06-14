@@ -5,39 +5,10 @@ date: "6/15/2019"
 output: pdf_document
 
 ---
+#Part 1) EXECUTIVE SUMMARY
+#TODO
 
 ### HarvardX Data Science Capstone Class
-
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
-```
-
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
-
-
-
-
-
------------------
 
 June 2019
 
@@ -46,6 +17,40 @@ This is my Move Lens project for the Capstone Course in the HarvardX Data Scienc
 Student: Philip Brown 
 email: Phil@pjb3.com
 github: https://github.com/pjbMit
+
+
+My Movie Lens project files have also been stored in [Movie_Lens_R_Script.Rmd](https://github.com/pjbMit/movieLensProject "My Git Hub Movie Lens Project"), and can be viewed using these links
+
+[Movie_Lens_R_Script.Rmd](https://github.com/pjbMit/movieLensProject/blob/master/Movie_Lens_R_Script.Rmd "Movie Lens R Script")
+
+[Movie_Lens_Report.Rmd](https://github.com/pjbMit/movieLensProject/blob/master/Movie_Lens_Report.Rmd "Movie Lens Report Rmd file")
+
+[Movie_Lens_Report.pdf](https://github.com/pjbMit/movieLensProject/blob/master/Movie_Lens_Report.pdf "Movie Lens Report pdf file")
+
+
+*also... you can view an html page generated from the Movie_Lens_R_Script.Rmd on git hub from here:*
+
+[Movie_Lens_R_Script.nb.html](http://htmlpreview.github.io/?https://github.com/pjbMit/movieLensProject/blob/master/Movie_Lens_R_Script.nb.html "HTML page from Movie Lens R Script")
+
+
+
+#Part 2) METHODS AND ANALYSIS
+#TODO
+
+####Instructions from the assignment:
+1) Develop your algorithm using the edx set. 
+
+2) For a final test of your algorithm, predict movie ratings in the validation set as if they were unknown.
+
+3) RMSE will be used to evaluate how close your predictions are to the true values in the validation set.
+
+
+
+R script = commented code 
+Rmd = text + code + plots 
+PDF = knit from Rmd
+
+
 
 The project was created in the RStudio environment 
 using Rstudio Version 1.1.442 
@@ -59,50 +64,105 @@ See the README.Rmd or README.html files for more information on the environment 
 For questions, email me:   pjbMit@pjb3.com  , and I'll gladly respond promptly.
 
 
----------------------------
+
+Use multiple models, and see if results improve.  
+
+Use Regularization to limit effect of small data points
+
+Use movie effect, user effect & genre effect to improve results.
+
+Use cross-validation.
+
+Show plots to visualize results.
+ 
+
+--
+
 1) Develop your algorithm using the edx set. 
 
 2) For a final test of your algorithm, predict movie ratings in the validation set as if they were unknown.
 
 3) RMSE will be used to evaluate how close your predictions are to the true values in the validation set.
 
+-- General approach:
 
-## Set up.
+For many approaches, I will first try on a very small data set, just to get the code working,
+the re-run on a medium sized data set, and then when I am satisfied, run on the full edx training set.
 
-Data is downloaded from  https://grouplens.org/datasets/movielens/10m/
+Similarly, initially I will NOT do full cross-validation, but once I have code working, then I will.
 
-and then a subset is selected by running this code which is given in the assignment's instructions:
+SET UP libraries and enable turn multi-core processing 
+for some of operations used by the caret package.
 
-Data setup
+```{r initialize, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
-I needed to make two basic changes:
-First) I needed to use a different repository to load the libraries, because repo specified didn't work on my mac.
-Second) This R Code crashed RStudio repeatedly, so I created a function and added code to save objects as files,
-        so that I could save intermediate results into a file, and then reload them if and as necessary if R crashed.
-With these two work-arounds, I was able to load and process all of the data without incident.
-```{r}
+#### Set up.
 
-###################################
-# Create edx set and validation set
-###################################
+First set up a few logical variables in the global environment,
+then install packages and load libraries if and as needed.
 
-# Note: this process could take a couple of minutes
+The global variables serve as flags to skip portins of the code that
+are time-consuming, and to sometimes load saved objects from files instead of 
+computing the result.  This allows the script to be run to create a PDF report,
+or to be re-run without expedning the time needed for lengthy downloads or time
+consuming processing tasks.
 
 
-# Create a bunch of file names in my directory to save intermediate results to files
-t1 <- "~/movieLens1.rds"
-t2 <- "~/movieLens2.rds"
-t3 <- "~/movieLens3.rds"
-t4 <- "~/movieLens4.rds"
-t5 <- "~/movieLens5.rds"
-t6 <- "~/movieLens6.rds"
-t7 <- "~/movieLens7.rds"
-t8 <- "~/movieLens8.rds"
-t9 <- "~/movieLens9.rds"
-t10 <- "~/movieLens10.rds"
+```{r Global_Setup}
+#Also add another variable that lets me skip or alter how this code runs included in the report,
+#as opposed to running in this script.
+
+runningInScript <-TRUE # TRUE/FALSE value to skip portions of the script,or load from files if running the report.
+runningInScript <-FALSE  # uncomment this line when pasting this code to the Report Rmd file.
+
+loadFromFile <- FALSE
+loadFromFile <- TRUE  ## Comment out this line if we don't want to reload the ojbects from files
+
+load_edx_and_validation <- FALSE
+#load_edx_and_validation <- TRUE ## Comment out this line if we don't want to reload the ojbects from files
+
+# To make computations faster, when developing the code, 
+# set a flag to FALSE to make this script only use a small subset of the training data.
+# Later, once everything works, re-run the code with this value set to TRUE to use the full training set.
+
+inDevelopment <- FALSE # TRUE/FALSE value to only use a subset of data during development
+#inDevelopment <- TRUE  # To use the full training set, comment out this line and re-run the code.
+
+myTrainFileName <- "~/movieLensMyTrain.rds"
+myTestFileName  <- "~/movieLensMyTest.rds"
 edxFile <- "~/edxFile.rds"
 validationFile <- "~/validationFile.rds"
-fileName <- "movieLensSetup.rds"
+lambdasFile <- "movieLensLambdasFile.rds"
+rmsesFile <- "movieLensRmsesFile.rds"
+#fileName <- "movieLensSetup.rds"
+
+
+# PJB - Changed repos to a parameter so that I can use a compatible repo on my mac.
+isMac <- TRUE
+#isMac <- FALSE  ##Set to false if you are NOT running on a Mac.
+
+ifelse(isMac,repos <<- "https://cran.revolutionanalytics.com/" , repos <<- "http://cran.us.r-project.org")
+
+
+#Load libraries, installing as necessary
+if(!require(tidyverse)) install.packages("tidyverse", repos = repos)
+if(!require(caret)) install.packages("caret", repos = repos)
+if(!require(mlbench)) install.packages("mlbench", repos = repos)
+
+# Multicore processing package for caret.
+if(!require(doMC)) install.packages("doMC", repos = repos)
+registerDoMC(cores=8)
+
+#For ctree model.  See https://rpubs.com/chengjiun/52658
+if(!require(party)) install.packages("party", repos = repos)
+
+if(!require(randomForest)) install.packages("randomForest", repos = repos)
+if(!require(inTrees)) install.packages("inTrees", repos = repos) #Used by rfRules model
+if(!require(xgboost)) install.packages("xgboost", repos = repos)
+if(!require(pROC)) install.packages("pROC", repos = repos)  #provides the roc function.
+if(!require(matrixStats)) install.packages("matrixStats", repos = repos)  #provides the roc function.
 
 #Function that if passed save==TRUE with save the object to the file.
 #  otherwise returns without doing anything
@@ -118,123 +178,126 @@ saveWork <- function(file,object,save){
     }
 }
 
-# PJB - Changed repo to a parameter so that I can use a compatible repo on my mac.
-isMac <- TRUE
-#isMac <- FALSE  ##Set to false if you are NOT running on a Mac.
+```
 
-ifelse(isMac,repo <- "https://cran.revolutionanalytics.com/" , repo <- "http://cran.us.r-project.org")
-repo
-# 
 
-if(!require(tidyverse)) install.packages("tidyverse", repos = repo)
-if(!require(caret)) install.packages("caret", repos = repo)
+Data is downloaded from  https://grouplens.org/datasets/movielens/10m/
 
-# MovieLens 10M dataset:
-# https://grouplens.org/datasets/movielens/10m/
-# http://files.grouplens.org/datasets/movielens/ml-10m.zip
+and then a subset is selected by running this code which is given in the assignment's instructions:
 
-dl <- tempfile()
-## Don't actually download for this report. Only do it in the "real" script
-#download.file("http://files.grouplens.org/datasets/movielens/ml-10m.zip", dl)
+Data setup
 
-dl
-# Skip this step in the report. Only run it in the real script.
-#ratings <- read.table(text = gsub("::", "\t", readLines(unzip(dl, "ml-10M100K/ratings.dat"))),
-#                      col.names = c("userId", "movieId", "rating", "timestamp"))
+I needed to make two basic changes to the script that was provided:
+First) I needed to use a different repository to load the libraries, because repo specified didn't work on my mac.
+Second) This R Code crashed RStudio repeatedly, so I created a function and added code to save objects as files,
+        so that I could save intermediate results into a file, and then reload them if and as necessary if R crashed.
+With these two work-arounds, I was able to load and process all of the data without incident.
+```{r create_edx_and_validation_sets}
 
-## Set saveProgess to TRUE to save objects as intermediate results to files
-## set it to FALSE not to save the intermediate results to files.
-## This is used because RSTUDIO crashed repeatedly when I ran the script, 
-## so this allowed me to save intermediate results into files, and reload them later
-## to continue processing.
+# 
+# Create edx set and validation set
+#
 
-#For the report, don't save intermediate files.
-#saveProgress <- TRUE
-saveProgress <- FALSE  
+# Note: this process could take a couple of minutes
 
-saveWork(t1,ratings,saveProgress)
-
-## For the report, don't run the code below. Only run it in the real script.
-#movies <- str_split_fixed(readLines(unzip(dl, "ml-10M100K/movies.dat")), "\\::", 3)
-#colnames(movies) <- c("movieId", "title", "genres")
-#movies <- as.data.frame(movies) %>% mutate(movieId = as.numeric(levels(movieId))[movieId],
-#                                           title = as.character(title),
-#                                           genres = as.character(genres))
-# saveWork(t2,movies,saveProgress)
-# 
-# movielens <- left_join(ratings, movies, by = "movieId")
-# saveWork(t3,movielens,saveProgress)
-# 
-# # Validation set will be 10% of MovieLens data
-# 
-# set.seed(1) # if using R 3.6.0: set.seed(1, sample.kind = "Rounding")
-# test_index <- createDataPartition(y = movielens$rating, times = 1, p = 0.1, list = FALSE)
-# edx <- movielens[-test_index,]
-# temp <- movielens[test_index,]
-# 
-# saveWork(t4,test_index,saveProgress)
-# saveWork(t5,edx,saveProgress)
-# saveWork(t6,temp,saveProgress)
-# 
-# # Make sure userId and movieId in validation set are also in edx set
-# 
-# validation <- temp %>% 
-#      semi_join(edx, by = "movieId") %>%
-#      semi_join(edx, by = "userId")
-# saveWork(t7,validation,saveProgress)
-# 
-# # Add rows removed from validation set back into edx set
-# 
-# removed <- anti_join(temp, validation)
-# saveWork(t8,removed,saveProgress)
-# 
-# edx <- rbind(edx, removed)
-# 
-# 
-# rm(dl, ratings, movies, test_index, temp, movielens, removed)
-
-#Save these two objects into files, so that I can easily 
-#recreate the object using code similar to:
-#    objectName <- load(file)
-#without having to download and process the data again.
-saveWork(edxFile,edx,saveProgress)
-saveWork(validationFile,validation,saveProgress)
-
-#Clean up my environment by removing old variables.
-rm(t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,fileName,isMac,repo)
+if(runningInScript){
+    #runningInScript
+    print("runningInScript is TRUE")
+    # Create a bunch of file names in my directory to save intermediate results to files
+    t1 <- "~/movieLens1.rds"
+    t2 <- "~/movieLens2.rds"
+    t3 <- "~/movieLens3.rds"
+    t4 <- "~/movieLens4.rds"
+    t5 <- "~/movieLens5.rds"
+    t6 <- "~/movieLens6.rds"
+    t7 <- "~/movieLens7.rds"
+    t8 <- "~/movieLens8.rds"
+    t9 <- "~/movieLens9.rds"
+    t10 <- "~/movieLens10.rds"
+    
+    
+    # MovieLens 10M dataset:
+    # https://grouplens.org/datasets/movielens/10m/
+    # http://files.grouplens.org/datasets/movielens/ml-10m.zip
+    
+    dl <- tempfile()
+    download.file("http://files.grouplens.org/datasets/movielens/ml-10m.zip", dl)
+    
+    dl
+    ratings <<- read.table(text = gsub("::", "\t", readLines(unzip(dl, "ml-10M100K/ratings.dat"))),
+                          col.names = c("userId", "movieId", "rating", "timestamp"))
+    
+    ## Set saveProgess to TRUE to save objects as intermediate results to files
+    ## set it to FALSE not to save the intermediate results to files.
+    ## This is used because RSTUDIO crashed repeatedly when I ran the script, 
+    ## so this allowed me to save intermediate results into files, and reload them later
+    ## to continue processing.
+    
+    saveProgress <- TRUE
+    saveProgress <- FALSE  # Set to false, and intermediate files WILL NOT be saved.
+    
+    saveWork(t1,ratings,saveProgress)
+    
+    movies <- str_split_fixed(readLines(unzip(dl, "ml-10M100K/movies.dat")), "\\::", 3)
+    colnames(movies) <- c("movieId", "title", "genres")
+    movies <- as.data.frame(movies) %>% mutate(movieId = as.numeric(levels(movieId))[movieId],
+                                               title = as.character(title),
+                                               genres = as.character(genres))
+    saveWork(t2,movies,saveProgress)
+    
+    movielens <- left_join(ratings, movies, by = "movieId")
+    saveWork(t3,movielens,saveProgress)
+    
+    # Validation set will be 10% of MovieLens data
+    
+    set.seed(1) # if using R 3.6.0: set.seed(1, sample.kind = "Rounding")
+    test_index <- createDataPartition(y = movielens$rating, times = 1, p = 0.1, list = FALSE)
+    edx <- movielens[-test_index,]
+    temp <- movielens[test_index,]
+    
+    saveWork(t4,test_index,saveProgress)
+    saveWork(t5,edx,saveProgress)
+    saveWork(t6,temp,saveProgress)
+    
+    # Make sure userId and movieId in validation set are also in edx set
+    
+    validation <<- temp %>% 
+         semi_join(edx, by = "movieId") %>%
+         semi_join(edx, by = "userId")
+    saveWork(t7,validation,saveProgress)
+    
+    # Add rows removed from validation set back into edx set
+    
+    removed <- anti_join(temp, validation)
+    saveWork(t8,removed,saveProgress)
+    
+    edx <<- rbind(edx, removed)
+    
+    
+    rm(dl, ratings, movies, test_index, temp, movielens, removed)
+    
+    #Save these two objects into files, so that I can easily 
+    #recreate the object using code similar to:
+    #    objectName <- load(file)
+    #without having to download and process the data again.
+    
+    saveProgress <- TRUE
+    saveWork(edxFile,edx,saveProgress)
+    saveWork(validationFile,validation,saveProgress)
+    
+    #Clean up my environment by removing old variables.
+    rm(t1,t2,t3,t4,t5,t6,t7,t8,t9,t10)
+}
 
 ```
 
 
-
-General approach:
-
-For many approaches, I will first try on a very small data set, just to get the code working,
-the re-run on a medium sized data set, and then when I am satisfied, run on the full edx training set.
-
-Similarly, initially I will NOT do full cross-validation, but once I have code working, then I will.
-
-SET UP libraries and enable turn multi-core processing 
-for some of operations used by the caret package.
-
-
-Now the edx object and the validation object are both saved on the file system, so as a short-cut I can reload
+Now that the edx object and the validation object are both saved on the file system, so as a short-cut I can reload
 those objects from disk to run my code, rather than having to download and process the raw data multiple times
 during development.
 
-```{r}
-
-#Load libraries, installing as necessary
-if(!require(tidyverse)) install.packages("tidyverse", repos = repos)
-if(!require(caret)) install.packages("caret", repos = repos)
-if(!require(mlbench)) install.packages("mlbench", repos = repo)
-
-# Multicore processing package for caret.
-if(!require(doMC)) install.packages("doMC", repos = repos)
-registerDoMC(cores=8)
-
-#For ctree model.  See https://rpubs.com/chengjiun/52658
-if(!require(party)) install.packages("party", repos = repos)
+```{r Define_Functions}
+#Defines many of the functions that the script calls
 
 #Function to load the edx object from a saved file.
 #This allows faster re-runs of the code, by avoiding downloading and re-processing
@@ -257,16 +320,6 @@ restoreValidation <- function(loadFromFile){
     }
     validation
 }
-
-# Function to get the repository to use 
-# Needed because on my Mac, the standard CRAN repository gave me errors.
-getRepos <- function() {
-    isMac <- TRUE
-    #isMac <- FALSE  ##Set to false if you are NOT running on a Mac.
-    ifelse(isMac,repo <- "https://cran.revolutionanalytics.com/" , repo <- "http://cran.us.r-project.org")
-    }
-
-repos <- getRepos() #Use a differnt repository for R packages if on the Mac
 
 
 #Now define some utility functions and functions used to preProcess the data.
@@ -305,6 +358,12 @@ extractGenresData <- function(oneGenre,genresByMovie){
 ## It Accepts the training data frame, and returns a new data frame
 ## containing the preProcessed data
 myPreProcess <- function (data) {
+    ifelse(!runningInScript,
+    { #!runningInScript
+        print ("runningInScipt is FALSE")
+        
+    },
+    { #runningInScript
     allGenres <- getAllGenres(data)   # gets all generes
     allGenresStr <- allGenres$genres  # A vector with one entry for each unique genere  
     rm(allGenres)
@@ -331,6 +390,7 @@ myPreProcess <- function (data) {
     moviesWithGenre <- cbind(factors,genreDf,tibble(test=data$test)) %>% 
                         mutate(rating=data$rating)
     moviesWithGenre #And return the now preProcessed data frame that is the result.
+    })
 }
 
 #
@@ -343,68 +403,14 @@ getData <- function (data,returnSubSet) {
  myData <- data
  if(returnSubSet) 
    { #Only use a Subset if in development
-    percent <- 0.001
-    #percent <- 0.01
+    #percent <- 0.001
+    percent <- 0.01
     dataSubset <- getSubset(data,edx$rating,percent)
     myData <- dataSubset
     
     }
 myData  #Return the data
 }
-
-```
-
-The code below will load the edx and validation data from local files, after it has been downloaded, processed and saved per the instructions provided.  You can re-run this chunk of code to reload the data, rather than download and process it
-again.
-```{r}
-
-loadFromFile <- FALSE
-loadFromFile <- TRUE  ## Comment out this line if we don't want to reload the ojbects from files
-
-# load the data from the saved file
-edx <- restoreEdx(loadFromFile)
-validation <- restoreValidation(loadFromFile)
-
-```
-
-
-PreProcess the data.
-During development, only preprocess a subset of the data so that code runs quickly.
-Run on the full set of data once development is completed, and it works.
-
-```{r}
-
-##Preprocess and get either the training data, or a subset it, depending on the value of inDevlopment.
-
-
-# To make computations faster,
-# only use a small subset of the training data for now.
-# Later, re-run the code using the full training set once everything works.
-
-inDevelopment <- FALSE # TRUE/FALSE value to only use a subset of data during development
-inDevelopment <- TRUE  # To use the full training set, comment out this line and re-run the code.
- 
-
-data <- getData(edx,inDevelopment)  # Get the training data, or a subset of it.
-glimpse(data) 
-
-
-d1 <- data %>% mutate(test=FALSE)
-d2 <- validation %>% mutate(test=TRUE)
-
-movieDataWithGenre <- myPreProcess(rbind(d1,d2)) # Preprocess and get subsets of the data
-glimpse(movieDataWithGenre)
-myTrain <- movieDataWithGenre %>% filter(test==FALSE) %>% select (-test,-genres)
-myTest  <- movieDataWithGenre %>% filter(test==TRUE) %>% select (-test) 
-
-rm(d1,d2,movieDataWithGenre)
-```
-
-First look at the most naive approach... and notice that 3.51 is the mu_hat that has the lowest RMSE.
-```{r}
-# Using model Y_u_i = U + E_u_i
-mu_hat <- mean(myTrain$rating)
-mu_hat
 
 #Function calculates RMSE, substituting zero as the error for NA rows
 myRMSE <- function(true_ratings, predicted_ratings){
@@ -413,6 +419,69 @@ myRMSE <- function(true_ratings, predicted_ratings){
     diff[is.na(diff)]<-0
     sqrt(mean((diff)^2))
   }
+
+```
+
+
+
+
+PreProcess the data.
+During development, only preprocess a subset of the data so that code runs quickly.
+Run on the full set of data once development is completed, and it works.
+
+```{r PreProcessing}
+
+##Preprocess and get either the training data, or a subset it, depending on the value of inDevlopment.
+## If certain booleans are set, then load myTest and myTrain from pre-saved files those objects don't already exist.
+print("PreProcessing")
+if(runningInScript) {
+    #RunningInSCript
+    print("RunningInScript")
+    data <- getData(edx,inDevelopment)  # Get the training data, or a subset of it.
+    glimpse(data) 
+    
+    d1 <- data %>% mutate(test=FALSE)
+    d2 <- validation %>% mutate(test=TRUE)
+    
+    movieDataWithGenre <- myPreProcess(rbind(d1,d2)) # Preprocess and get subsets of the data
+    glimpse(movieDataWithGenre)
+    myTrain <- movieDataWithGenre %>% filter(test==FALSE) %>% select (-test,-genres)
+    myTest  <- movieDataWithGenre %>% filter(test==TRUE) %>% select (-test) 
+    
+    ## Save processed train and test data to files,
+    ## so that they can be reloaded later, instead of created from scratch.
+    saveWork(myTrainFileName,myTrain,TRUE)
+    saveWork(myTestFileName,myTest,TRUE)
+    
+    rm(data,d1,d2,movieDataWithGenre)
+}
+
+if(!runningInScript){
+    #!runningInScript
+    # print("NOT RunningInScript")
+    #Load myTrain object from a file if boolean flags are set, and if the object doesn't already exist.
+    #Load myTest  object from a file if boolean flags are set, and if the object doesn't already exist.
+    if(loadFromFile){
+        # Note use of special assignment operator which scopes the variable in the global environment.
+        if(! exists("myTrain")) {
+            print("Loading myTrain from file.")
+            myTrain <<- readRDS(myTrainFileName) 
+        }
+        if(! exists("myTest")){
+            print("Loading myTest from file.")
+            myTest  <<- readRDS(myTestFileName)
+        }
+    }
+}
+
+
+```
+
+First look at the most naive approach... and notice that 3.51 is the mu_hat that has the lowest RMSE.
+```{r Fit_And_Tune_Model}
+# Using model Y_u_i = U + E_u_i
+mu_hat <- mean(myTrain$rating)
+mu_hat
 
 naive_rmse <- myRMSE(myTest$rating, mu_hat)
 
@@ -481,37 +550,59 @@ rmse_results <- bind_rows(rmse_results,
                                      RMSE = model_3_rmse))
 rmse_results 
 ```
-Now we will tune the parameter lambda.
-```{r}
-library(matrixStats)
-library(tidyverse)
+#Part 3) RESULTS {#Best-Results}
+#TODO
+
+Now we will tune the parameter lambda.   
+
+Here's a link [back to the Summary](#Summary) section of this script.
+
+*(See the output below which shows best results obtained.)*
+```{r Best_Results}
+
 # The estimates that minimize this can be found similarly to what we did above. 
-# Here we use cross-validation to pick a lambda 
+# Here we use cross-validation to pick a l  ambda
+if(runningInScript){
+    #RunningInScript
+    print("RunningInScript is TRUE")
+    lambdas <<- seq(0, 10, 0.25)
+    
+    rmses <- sapply(lambdas, function(l){
+    
+      mu <<- mean(myTrain$rating)
+      
+      b_i <- myTrain %>% 
+        group_by(movieId) %>%
+        summarize(b_i = sum(rating - mu)/(n()+l))
+      
+      b_u <- myTrain %>% 
+        left_join(b_i, by="movieId") %>%
+        group_by(userId) %>%
+        summarize(b_u = sum(rating - b_i - mu)/(n()+l))
+    
+      predicted_ratings <- 
+        myTest %>% 
+        left_join(b_i, by = "movieId") %>%
+        left_join(b_u, by = "userId") %>%
+        mutate(pred = mu + b_i + b_u) %>%
+        pull(pred)
+      
+        return(myRMSE(predicted_ratings, myTest$rating))
+    })
+    
+    ## Save processed train and test data to files,
+    ## so that they can be reloaded later, instead of created from scratch.
+    saveWork(lambdasFile,lambdas,TRUE)
+    saveWork(rmsesFile,rmses,TRUE)
+    
+    #free memory
+    rm(edx,validation,predicted_ratings,user_avgs,movie_avgs,movie_reg_avgs)
+}
 
-lambdas <- seq(0, 10, 0.25)
-
-rmses <- sapply(lambdas, function(l){
-
-  mu <- mean(myTrain$rating)
-  
-  b_i <- myTrain %>% 
-    group_by(movieId) %>%
-    summarize(b_i = sum(rating - mu)/(n()+l))
-  
-  b_u <- myTrain %>% 
-    left_join(b_i, by="movieId") %>%
-    group_by(userId) %>%
-    summarize(b_u = sum(rating - b_i - mu)/(n()+l))
-
-  predicted_ratings <- 
-    myTest %>% 
-    left_join(b_i, by = "movieId") %>%
-    left_join(b_u, by = "userId") %>%
-    mutate(pred = mu + b_i + b_u) %>%
-    pull(pred)
-  
-    return(myRMSE(predicted_ratings, myTest$rating))
-})
+if(!runningInScript){
+    lambdas <- readRDS(lambdasFile) 
+    rmses <- readRDS(rmsesFile)
+}
 
 qplot(lambdas, rmses)  
 
@@ -523,208 +614,170 @@ rmse_results <- bind_rows(rmse_results,
                                      RMSE = min(rmses)))
 rmse_results %>% knitr::kable()
 
-#free memory
-rm(data,edx,validation,predicted_ratings,user_avgs,movie_avgs,movie_reg_avgs)
 
+```
+
+
+Additional examination, and trying different models.
+```{r Additional_Analysis}
+
+#Perform additional analysis & testing to learn about the data
+#and to see if certain approaches improve model performance.
 
 #Determine factors that contribute the most variablity, and show a heatmap of a random sample of rows, ordered
 #from highest variable factor to least variable.
 
-x<-as.matrix(myTrain[5:23])
-glimpse(x)
-sds <- colSds(x, na.rm = TRUE)
-o <- order(sds, decreasing = TRUE)[1:19]
-dim(x)
-x2 <- as.matrix(getSubset(x[,o],myTrain$rating,0.02))
-dim(x2)
-heatmap(x2[,o], col = RColorBrewer::brewer.pal(11, "Spectral"))
-apply(x2[,o],MARGIN=2,mean)
-
-top <- x[1,1:5]
-cols <- names(top)
-
-
-
-```
-
-
-The code below is a useful utility that shows you the objects in memory, and how large they are.
-Courtesy of stack overflow  
-( https://stackoverflow.com/questions/1358003/tricks-to-manage-the-available-memory-in-an-r-session ) 
-```{r}
-# improved list of objects
-.ls.objects <- function (pos = 1, pattern, order.by,
-                        decreasing=FALSE, head=FALSE, n=5) {
-    napply <- function(names, fn) sapply(names, function(x)
-                                         fn(get(x, pos = pos)))
-    names <- ls(pos = pos, pattern = pattern)
-    obj.class <- napply(names, function(x) as.character(class(x))[1])
-    obj.mode <- napply(names, mode)
-    obj.type <- ifelse(is.na(obj.class), obj.mode, obj.class)
-    obj.prettysize <- napply(names, function(x) {
-                           format(utils::object.size(x), units = "auto") })
-    obj.size <- napply(names, object.size)
-    obj.dim <- t(napply(names, function(x)
-                        as.numeric(dim(x))[1:2]))
-    vec <- is.na(obj.dim)[, 1] & (obj.type != "function")
-    obj.dim[vec, 1] <- napply(names, length)[vec]
-    out <- data.frame(obj.type, obj.size, obj.prettysize, obj.dim)
-    names(out) <- c("Type", "Size", "PrettySize", "Length/Rows", "Columns")
-    if (!missing(order.by))
-        out <- out[order(out[[order.by]], decreasing=decreasing), ]
-    if (head)
-        out <- head(out, n)
-    out
+#Only do the additional analysis if runningInScript is TRUE
+if(runningInScript){
+    #runningInScript
+    print("runningInScript is TRUE")
+    x<-as.matrix(myTrain[5:23])
+    sds <- colSds(x, na.rm = TRUE)
+    o <- order(sds, decreasing = TRUE)[1:19]
+    dim(x)
+    #Draw a heatmap, using a subset of the data
+    x2 <- as.matrix(getSubset(x[,o],myTrain$rating,0.0005))
+    dim(x2)
+    sds2 <- colSds(x2, na.rm = TRUE)
+    o2 <- order(sds2, decreasing = TRUE)[1:19]
+    heatmap(x2[,o2], col = RColorBrewer::brewer.pal(11, "Spectral"))
+    o2
+    sds2
+    apply(x2,MARGIN=2,mean)
+    colnames(x2)
+    
+    top <- x2[1,2:5]
+    cols <- names(top)
+    #These are the attributes that add the most variability to the data
+    cols
+    
+    colNames <- names(myTrain)[1:7]
+    
+    #ReOrder columns, removing titleID, and putting ratings as the first column
+    tmp2 = names(myTrain)[1]
+    tmp3 = names(myTrain)[2]
+    colNames[1] <- "rating"  #Remove titleId, and replace it with "rating"
+    colNames[2] <- tmp2
+    colNames[3] <- tmp3
+    
+    #Show order of columns
+    names(myTrain[colNames])
+    
+    # See list of models available in caret
+    #names(getModelInfo())
+    
+    # prepare training scheme  ##number and repeats set lower for faster executiion
+    
+    #Alter myTrain to have fewer rows because training on 10MM rows takes wayyy too long!
+    myTrainSubset <- getSubset(myTrain[colNames],myTrain$rating,0.01)
+    #trainControl <- trainControl(method="repeatedcv", number=5, repeats=2)
+    
+    trainControl <- trainControl(method="LGOCV",
+                                 number=4,
+                                 returnData = FALSE,
+                                 trim = TRUE,
+                                 allowParallel = TRUE
+                                     )
+    
+    metric <- "RMSE"
+    
+    # CART
+    set.seed(7)
+    fit.model1 <- train(rating ~ ., data =myTrainSubset, method="rpart", metric = metric, maximize = FALSE,
+        trControl=trainControl)
+    
+    # Second Model
+    set.seed(7)
+    fit.model2 <- train(rating~., data = myTrainSubset, 
+                        method = "treebag", 
+                        metric = metric, 
+                        maximize = FALSE, 
+                        na.action = na.omit,
+                        trControl=trainControl)
+    
+    # collect resamples
+    results <- resamples(list(RPART=fit.model1, TREEBAG=fit.model2))
+    
+    # summarize differences between models
+    summary(results)
+    
+    # box and whisker plots to compare models
+    scales <- list(x=list(relation="free"), y=list(relation="free"))
+    bwplot(results, scales=scales)
+    
+    # dot plots of accuracy
+    scales <- list(x=list(relation="free"), y=list(relation="free"))
+    dotplot(results, scales=scales)
+    
+    # pairwise scatter plots of predictions to compare models
+    splom(results)
+    
+    
+    # 
+    # # Create a Random Forest model with default parameters
+    # model1 <- randomForest(rating ~ ., data = myTrainSubset[colNames], importance = TRUE, mtry=6)
+    # model1
+    # print(model1)
+    
+    dart.parm <- list(booster = "dart", 
+                      rate_drop = 0.1, 
+                      nthread = 4, 
+                      eta = 0.1, 
+                      max_depth = 3, 
+                      subsample = 1, 
+                      eval_metric = "rmse")
+    rowNames <- rownames(myTrainSubset)
+    dart <- xgboost(data = as.matrix(myTrainSubset[,-1]), 
+                    label = rownames(myTrainSubset[,-1]), 
+                    params = dart.parm, 
+                    nrounds = 50, 
+                    verbose = 0, 
+                    seed = 2017)
+    colNames <- names(myTrainSubset[, -1])
+    colNames
+    pred1 <- predict(dart, as.matrix(myTrainSubset[, -1]))
+    pred2 <- predict(dart, as.matrix(myTest[colNames]))
+    roc(as.factor(myTrainSubset$rating), pred1)
+    # Area under the curve: 0.7734
+    roc(as.factor(myTest$rating), pred2)
+    # Area under the curve: 0.6517
+    
+    
+    ##ctree2 with CV
+      fitControl <- trainControl(method = 'cv', number=6,summaryFunction=defaultSummary)
+      set.seed(123)
+      Grid <- expand.grid(maxdepth = seq(10, 30,5),mincriterion=0.95)
+    
+      formula <- rating ~   userId + movieId + Drama + Comedy + Action
+      fit.ctree2CV <- train(formula, data=myTrainSubset, method = 'ctree2',
+                            trControl=fitControl,tuneGrid=Grid,metric='RMSE')
+      print(fit.ctree2CV)
+      predict <- predict(fit.ctree2CV, as.matrix(myTest[c("userId","movieId","Drama","Comedy","Action")]))
+      rmse <- myRMSE(myTest$rating,predict)
+      rmse
+      #results <- resamples(list(CTREE2=fit.ctree2CV))
 }
 
-# shorthand
-lsos <- function(..., n=10) {
-    .ls.objects(..., order.by="Size", decreasing=TRUE, head=TRUE, n=n)
-}
-
-lsos()
 ```
 
+#Part 4) CONCLUSION
+#TODO
 
 
+<!-- This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>. -->
 
+<!-- When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this: -->
 
-My notes:
+<!-- ```{r cars} -->
+<!-- summary(cars) -->
+<!-- ``` -->
 
-Don't use lm on huge datasets. Look at the alternatives using movie_avgs and user_avgs in the lectures.
+<!-- ## Including Plots -->
 
-34.7.5 Modeling movie effects
+<!-- You can also embed plots, for example: -->
 
-Don't use lm_fit with huge amounts of data. Checkout 34.7.5 Modeling movie effects in EDXdatasciencebook.pdf for an alternative.
+<!-- ```{r pressure, echo=FALSE} -->
+<!-- plot(pressure) -->
+<!-- ``` -->
 
-Use Genres to improve RMSE scores.
-
-https://courses.edx.org/courses/course-v1:HarvardX+PH125.9x+2T2018/discussion/forum/1ae77f8b04e1c45e4b425cab952e4519ac2749f0/threads/5c7ac73b58adcb0994003491
-
-
-R script = commented code 
-Rmd = text + code + plots 
-PDF = knit from Rmd
-
-Test out tidyr::separate_rows(edx, genres, sep = "|") on a very small subset of edx and see what it is doing..
-
-
-================
-So I just finished up the machine learning class and started this one. I started on my project and have calculated and used b_i and b_u to inform my prediction. I was expecting to have to do more, but by rmse is already below 8.7, which exceeds our target. Have I messed something up? Will I be punished for having code that doesn't do everything the lessons did (regularization, genres, etc)?
-
-Hi, You can try different methods and select one with the best performances with a reasonable explanation.
-
-
-I just finished my analysis using the same two parameters, and was wondering if something was wrong as those two produce a reasonably good model per the rubric. I was going over the code time and again to make sure everything is right, and it appears to be. I am glad I am not the only one. For the record, I implemented regularization as well, but the improvement is not significant.
-
-Don't use lm on huge datasets. Look at the alternatives using movie_avgs and user_avgs in the lectures.
-
-One tip from me is for the genre effect. It is important to note that each user has a different genre effect. Note also that each movie has different genres. Finally and most importantly, treat genres as independent. That is, if a movie is having Romance|Comedy, then treat it as having both romance and comedy rather than Romance|Comedy as one unit. This is due to sparseness of the data. If you treat each combination of the genre as unique then there will be many genres and very few ratings in each genre. This will not give you a robust estimate.
-
-Using this it was possible for me to go below 0.85 RMSE.                       
-
-I used most of the same methods. I personally could have spent more time on the regularization, but my first guess at lambda got me under the the required RMSE so I called it good. One of my reviewers called me on it saying It was dumb luck and i should have used cross validation (they were right) but they gave me full points.
-
-Look at the rubric and see what you are being graded against. There isn't a section for originality. So dont sweat it too much. Again save the fear for the choose your own project. I'm waiting on my staff review and its nerve racking.
-
-------------------------------
-http://factominer.free.fr/factomethods/multiple-factor-analysis.html
-
-res = MFA(wine, group=c(2,5,3,10,9,2), type=c("n",rep("s",5)), ncp=5, name.group=c("origin","odor","visual","odor.after.shaking", "taste","overall"), num.group.sup=c(1,6))
-#wine: the data set used
-#group: a vector indicating the number of variables in each group
-#type: the type of the variables in each group. "s" for scaled continuous variables, "c" for centered (unscaled) continuous variables and "n" for categorical variables
-#ncp: number of dimensions kept in the result
-#name.group: names of the groups
-#num.group.sup: indexes of the supplementary groups
-
-
-```{r}
-
-
-#if you want to see the objects within a function, you have to use: lsos(pos = environment()), otherwise it'll only show #global variables. To write to standard error: write.table(lsos(pos=environment()), stderr(), quote=FALSE, sep='\t')
-
-#I use the data.table package. With its := operator you can :
-
-# Add columns by reference
-# Modify subsets of existing columns by reference, and by group by reference
-# Delete columns by reference
-# None of these operations copy the (potentially large) data.table at all, not even once.
-# 
-# Aggregation is also particularly fast because data.table uses much less working memory.
-#
-#  https://www.gastonsanchez.com/visually-enforced/how-to/2012/06/17/PCA-in-R/
-
-## Use MCA to detemine which generes have the most influence
-# Multiple Correspondence Analysis (MCA)
-
-#Similar to PCA, but useful for categorical data.
-
-
-# http://factominer.free.fr/factomethods/multiple-correspondence-analysis.html
-
-
-#Here are some models to consider
-
-#Sparse Partial Least Squares
-
-#  method = 'spls'
-#Type: Regression, Classification
-
-#Tuning parameters:
-
-#K (#Components)
-#eta (Threshold)
-#kappa (Kappa)
-#Required packages: spls
-#
-#Linear Regression with Stepwise Selection
-
-#   method = 'leapSeq'
-# Type: Regression
-# 
-# Tuning parameters:
-# 
-# nvmax (Maximum Number of Predictors)
-# Required packages: leaps
-# 
-# Linear Regression with Stepwise Selection
-# 
-#   method = 'lmStepAIC'
-# Type: Regression
-# 
-# No tuning parameters for this model
-# 
-# Required packages: MASS
-```
-
-----------------------------
-
-
- 
-Don't forget the github link:   https://github.com/satyajitpatra1976/Capstone_PH125.9x
-
-https://rafalab.github.io/dsbook/large-datasets.html#dimension-reduction
-
-===========
-
-
-
-
-Do a PCA to determie best predictors...
-
-Check to see if they are correllated, and remove if they are.
-
-Use multiple models, and see if results improve.  Use an ensemble approach.
-
-Tune parameters using cross-validation.
-
-Use Regularization to limit effect of small data points
-
-Use movie effect, user effect & genre effect to improve results.
-
-Show plots to visualize results.
-
-
-
-
+<!-- Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot. -->
