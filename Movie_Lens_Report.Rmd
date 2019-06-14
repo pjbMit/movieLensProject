@@ -297,7 +297,6 @@ getAllGenres <- function(edxData) {
 #The function accepts then name of a single movie genere, and returns a vector of 1's and 0's
 #indicating whether or not that genere name is part of the genres string from that movie
 extractGenresData <- function(oneGenre,genresByMovie){
-    #genresByMovie %>% filter( grepl(oneGenre, genresByMovie$genres, fixed = TRUE))  # %>% count()
     res <- grepl(oneGenre, genresByMovie$genres, fixed = TRUE)
     sapply(res, as.numeric) ## Convert all logical values to numeric
 }
@@ -487,7 +486,7 @@ Now we will tune the parameter lambda.
 library(matrixStats)
 library(tidyverse)
 # The estimates that minimize this can be found similarly to what we did above. 
-# Here we use cross-validation to pick a  λ 
+# Here we use cross-validation to pick a lambda 
 
 lambdas <- seq(0, 10, 0.25)
 
