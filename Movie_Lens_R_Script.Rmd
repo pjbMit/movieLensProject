@@ -57,11 +57,16 @@ https://github.com/pjbMit/movieLensProject
 
 and here are links to Git Hub for my R Code Script, my Report Script and the related PDF Report file:
 
-[Movie_Lens_R_Script.nb.html](http://htmlpreview.github.io/?https://github.com/pjbMit/movieLensProject/blob/master/Movie_Lens_R_Script.nb.html "Movie Lens R Script")
+[Movie_Lens_R_Script.Rmd](https://github.com/pjbMit/movieLensProject/blob/master/Movie_Lens_R_Script.Rmd "Movie Lens R Script")
 
-[Movie_Lens_Report.Rmd](http://htmlpreview.github.io/?https://github.com/pjbMit/movieLensProject/blob/master/Movie_Lens_Report.Rmd "Movie Lens Report Rmd file")
+[Movie_Lens_Report.Rmd](https://github.com/pjbMit/movieLensProject/blob/master/Movie_Lens_Report.Rmd "Movie Lens Report Rmd file")
 
-[Movie_Lens_Report.pdf](http://htmlpreview.github.io/?https://github.com/pjbMit/movieLensProject/blob/master/Movie_Lens_Report.pdf "Movie Lens Report pdf file")
+[Movie_Lens_Report.pdf](https://github.com/pjbMit/movieLensProject/blob/master/Movie_Lens_Report.pdf "Movie Lens Report pdf file")
+
+
+*also... you can view an html page generated from the Movie_Lens_R_Script.Rmd on git hub from here:*
+
+[Movie_Lens_R_Script.nb.html](http://htmlpreview.github.io/?https://github.com/pjbMit/movieLensProject/blob/master/Movie_Lens_R_Script.nb.html "HTML page from Movie Lens R Script")
 
 ----------------------------
 
@@ -114,6 +119,9 @@ runningInScript <-FALSE  # uncomment this line when pasting this code to the Rep
 loadFromFile <- FALSE
 loadFromFile <- TRUE  ## Comment out this line if we don't want to reload the ojbects from files
 
+load_edx_and_validation <- FALSE
+#load_edx_and_validation <- TRUE ## Comment out this line if we don't want to reload the ojbects from files
+
 # To make computations faster, when developing the code, 
 # set a flag to FALSE to make this script only use a small subset of the training data.
 # Later, once everything works, re-run the code with this value set to TRUE to use the full training set.
@@ -125,6 +133,8 @@ myTrainFileName <- "~/movieLensMyTrain.rds"
 myTestFileName  <- "~/movieLensMyTest.rds"
 edxFile <- "~/edxFile.rds"
 validationFile <- "~/validationFile.rds"
+lambdasFile <- "movieLensLambdasFile.rds"
+rmsesFile <- "movieLensRmsesFile.rds"
 #fileName <- "movieLensSetup.rds"
 
 
@@ -152,6 +162,20 @@ if(!require(inTrees)) install.packages("inTrees", repos = repos) #Used by rfRule
 if(!require(xgboost)) install.packages("xgboost", repos = repos)
 if(!require(pROC)) install.packages("pROC", repos = repos)  #provides the roc function.
 if(!require(matrixStats)) install.packages("matrixStats", repos = repos)  #provides the roc function.
+
+#Function that if passed save==TRUE with save the object to the file.
+#  otherwise returns without doing anything
+#  This function was  created to save intermediate results to the file system,
+#  because for some reason RStudio crashed repeatedly when I tried to run the whole script.
+#  using code of the form:
+#        objectName <- load(file)
+#  if RStudio crashes, you can reload the objects already processed, and then
+#  continue the scrit from there.
+saveWork <- function(file,object,save){
+    if(save){
+        saveRDS(object,file)
+    }
+}
 
 ```
 
@@ -188,19 +212,6 @@ t8 <- "~/movieLens8.rds"
 t9 <- "~/movieLens9.rds"
 t10 <- "~/movieLens10.rds"
 
-#Function that if passed save==TRUE with save the object to the file.
-#  otherwise returns without doing anything
-#  This function was  created to save intermediate results to the file system,
-#  because for some reason RStudio crashed repeatedly when I tried to run the whole script.
-#  using code of the form:
-#        objectName <- load(file)
-#  if RStudio crashes, you can reload the objects already processed, and then
-#  continue the scrit from there.
-saveWork <- function(file,object,save){
-    if(save){
-        saveRDS(object,file)
-    }
-}
 
 # MovieLens 10M dataset:
 # https://grouplens.org/datasets/movielens/10m/
@@ -406,15 +417,24 @@ getData <- function (data,returnSubSet) {
 myData  #Return the data
 }
 
+#Function calculates RMSE, substituting zero as the error for NA rows
+myRMSE <- function(true_ratings, predicted_ratings){
+    diff <- true_ratings - predicted_ratings
+    #Replace NA with zero
+    diff[is.na(diff)]<-0
+    sqrt(mean((diff)^2))
+  }
+
 ```
 
 The code below will load the edx and validation data from local files, after it has been downloaded, processed and saved per the instructions provided.  You can re-run this chunk of code to reload the data, rather than download and process it
 again.
-```{r}
+```{r Load_edx_and_validation}
+#This code allows me to load pre-saved objects, rather than having to recalculate them each time.
 
 # load the data from the saved file, if the loadFromFile parameter is true. Otherwise, no-op.
-edx <- restoreEdx(loadFromFile)
-validation <- restoreValidation(loadFromFile)
+edx <- restoreEdx(loadFromFile && load_edx_and_validation)
+validation <- restoreValidation(loadFromFile && load_edx_and_validation)
 
 ```
 
@@ -446,11 +466,13 @@ if(runningInScript) {
     saveWork(myTrainFileName,myTrain,TRUE)
     saveWork(myTestFileName,myTest,TRUE)
     
-    rm(d1,d2,movieDataWithGenre)
+    rm(data,d1,d2,movieDataWithGenre)
 }
 if(!runningInScript){
     #!runningInScript
     # print("NOT RunningInScript")
+    #Load myTrain object from a file if boolean flags are set, and if the object doesn't already exist.
+    #Load myTest  object from a file if boolean flags are set, and if the object doesn't already exist.
     if(loadFromFile){
         # Note use of special assignment operator which scopes the variable in the global environment.
         if(! exists("myTrain")) {
@@ -468,18 +490,10 @@ if(!runningInScript){
 ```
 
 First look at the most naive approach... and notice that 3.51 is the mu_hat that has the lowest RMSE.
-```{r}
+```{r Fit_And_Tune_Model}
 # Using model Y_u_i = U + E_u_i
 mu_hat <- mean(myTrain$rating)
 mu_hat
-
-#Function calculates RMSE, substituting zero as the error for NA rows
-myRMSE <- function(true_ratings, predicted_ratings){
-    diff <- true_ratings - predicted_ratings
-    #Replace NA with zero
-    diff[is.na(diff)]<-0
-    sqrt(mean((diff)^2))
-  }
 
 naive_rmse <- myRMSE(myTest$rating, mu_hat)
 
@@ -586,6 +600,12 @@ rmses <- sapply(lambdas, function(l){
     return(myRMSE(predicted_ratings, myTest$rating))
 })
 
+## Save processed train and test data to files,
+## so that they can be reloaded later, instead of created from scratch.
+saveWork(lambdasFile,lambdas,TRUE)
+saveWork(rmsesFile,rmses,TRUE)
+    
+
 qplot(lambdas, rmses)  
 
 lambda <- lambdas[which.min(rmses)]
@@ -597,125 +617,134 @@ rmse_results <- bind_rows(rmse_results,
 rmse_results %>% knitr::kable()
 
 #free memory
-rm(data,edx,validation,predicted_ratings,user_avgs,movie_avgs,movie_reg_avgs)
+rm(edx,validation,predicted_ratings,user_avgs,movie_avgs,movie_reg_avgs)
 
 ```
 
 
 Additional examination, and trying different models.
-```{r}
+```{r Additional_Analysis}
+
+#Perform additional analysis & testing to learn about the data
+#and to see if certain approaches improve model performance.
 
 #Determine factors that contribute the most variablity, and show a heatmap of a random sample of rows, ordered
 #from highest variable factor to least variable.
 
-x<-as.matrix(myTrain[5:23])
-sds <- colSds(x, na.rm = TRUE)
-o <- order(sds, decreasing = TRUE)[1:19]
-dim(x)
-#Draw a heatmap, using a subset of the data
-x2 <- as.matrix(getSubset(x[,o],myTrain$rating,0.0005))
-dim(x2)
-sds2 <- colSds(x2, na.rm = TRUE)
-o2 <- order(sds2, decreasing = TRUE)[1:19]
-heatmap(x2[,o2], col = RColorBrewer::brewer.pal(11, "Spectral"))
-o2
-sds2
-apply(x2,MARGIN=2,mean)
-colnames(x2)
-
-top <- x2[1,2:5]
-cols <- names(top)
-#These are the attributes that add the most variability to the data
-cols
-
-colNames <- names(myTrain)[1:7]
-
-#ReOrder columns, removing titleID, and putting ratings as the first column
-tmp2 = names(myTrain)[1]
-tmp3 = names(myTrain)[2]
-colNames[1] <- "rating"  #Remove titleId, and replace it with "rating"
-colNames[2] <- tmp2
-colNames[3] <- tmp3
-
-#Show order of columns
-names(myTrain[colNames])
-
-# See list of models available in caret
-#names(getModelInfo())
-
-# prepare training scheme  ##number and repeats set lower for faster executiion
-
-#Alter myTrain to have fewer rows because training on 10MM rows takes wayyy too long!
-myTrainSubset <- getSubset(myTrain[colNames],myTrain$rating,0.01)
-#trainControl <- trainControl(method="repeatedcv", number=5, repeats=2)
-
-trainControl <- trainControl(method="LGOCV",
-                             number=4,
-                             returnData = FALSE,
-                             trim = TRUE,
-                             allowParallel = TRUE
-                                 )
-
-metric <- "RMSE"
-
-# CART
-set.seed(7)
-fit.model1 <- train(rating ~ ., data =myTrainSubset, method="rpart", metric = metric, maximize = FALSE,
-    trControl=trainControl)
-
-# Second Model
-set.seed(7)
-fit.model2 <- train(rating~., data=myTrainSubset, method="treebag", metric = metric, maximize = FALSE, na.action = na.omit,
-                trControl=trainControl)
-
-# collect resamples
-results <- resamples(list(RPART=fit.model1, TREEBAG=fit.model2))
-
-# summarize differences between models
-summary(results)
-
-# box and whisker plots to compare models
-scales <- list(x=list(relation="free"), y=list(relation="free"))
-bwplot(results, scales=scales)
-
-# dot plots of accuracy
-scales <- list(x=list(relation="free"), y=list(relation="free"))
-dotplot(results, scales=scales)
-
-# pairwise scatter plots of predictions to compare models
-splom(results)
-
-
-# 
-# # Create a Random Forest model with default parameters
-# model1 <- randomForest(rating ~ ., data = myTrainSubset[colNames], importance = TRUE, mtry=6)
-# model1
-# print(model1)
-
-dart.parm <- list(booster = "dart", rate_drop = 0.1, nthread = 4, eta = 0.1, max_depth = 3, subsample = 1, eval_metric = "rmse")
-rowNames <- rownames(myTrainSubset)
-dart <- xgboost(data = as.matrix(myTrainSubset[,-1]), label = rownames(myTrainSubset[,-1]), params = dart.parm, nrounds = 50, verbose = 0, seed = 2017)
-colNames <- names(myTrainSubset[, -1])
-colNames
-pred1 <- predict(dart, as.matrix(myTrainSubset[, -1]))
-pred2 <- predict(dart, as.matrix(myTest[colNames]))
-roc(as.factor(myTrainSubset$rating), pred1)
-# Area under the curve: 0.7734
-roc(as.factor(myTest$rating), pred2)
-# Area under the curve: 0.6517
-
-
-##ctree2 with CV
-  fitControl <- trainControl(method = 'cv', number=6,summaryFunction=defaultSummary)
-  set.seed(123)
-  Grid <- expand.grid(maxdepth = seq(10, 30,5),mincriterion=0.95)
-
-  formula <- rating ~   userId + movieId + Drama + Comedy + Action
-  fit.ctree2CV <- train(formula, data=myTrainSubset, method = 'ctree2', trControl=fitControl,tuneGrid=Grid,metric='RMSE')
-  print(fit.ctree2CV)
-  predict <- predict(fit.ctree2CV, as.matrix(myTest[c("userId","movieId","Drama","Comedy","Action")]))
-  rmse <- myRMSE(myTest$rating,predict)
-  rmse
-  #results <- resamples(list(CTREE2=fit.ctree2CV))
+#Only do the additional analysis if runningInScript is TRUE
+if(runningInScript){
+    #runningInScript
+    print("runningInScript is TRUE")
+    x<-as.matrix(myTrain[5:23])
+    sds <- colSds(x, na.rm = TRUE)
+    o <- order(sds, decreasing = TRUE)[1:19]
+    dim(x)
+    #Draw a heatmap, using a subset of the data
+    x2 <- as.matrix(getSubset(x[,o],myTrain$rating,0.0005))
+    dim(x2)
+    sds2 <- colSds(x2, na.rm = TRUE)
+    o2 <- order(sds2, decreasing = TRUE)[1:19]
+    heatmap(x2[,o2], col = RColorBrewer::brewer.pal(11, "Spectral"))
+    o2
+    sds2
+    apply(x2,MARGIN=2,mean)
+    colnames(x2)
+    
+    top <- x2[1,2:5]
+    cols <- names(top)
+    #These are the attributes that add the most variability to the data
+    cols
+    
+    colNames <- names(myTrain)[1:7]
+    
+    #ReOrder columns, removing titleID, and putting ratings as the first column
+    tmp2 = names(myTrain)[1]
+    tmp3 = names(myTrain)[2]
+    colNames[1] <- "rating"  #Remove titleId, and replace it with "rating"
+    colNames[2] <- tmp2
+    colNames[3] <- tmp3
+    
+    #Show order of columns
+    names(myTrain[colNames])
+    
+    # See list of models available in caret
+    #names(getModelInfo())
+    
+    # prepare training scheme  ##number and repeats set lower for faster executiion
+    
+    #Alter myTrain to have fewer rows because training on 10MM rows takes wayyy too long!
+    myTrainSubset <- getSubset(myTrain[colNames],myTrain$rating,0.01)
+    #trainControl <- trainControl(method="repeatedcv", number=5, repeats=2)
+    
+    trainControl <- trainControl(method="LGOCV",
+                                 number=4,
+                                 returnData = FALSE,
+                                 trim = TRUE,
+                                 allowParallel = TRUE
+                                     )
+    
+    metric <- "RMSE"
+    
+    # CART
+    set.seed(7)
+    fit.model1 <- train(rating ~ ., data =myTrainSubset, method="rpart", metric = metric, maximize = FALSE,
+        trControl=trainControl)
+    
+    # Second Model
+    set.seed(7)
+    fit.model2 <- train(rating~., data=myTrainSubset, method="treebag", metric = metric, maximize = FALSE, na.action = na.omit,
+                    trControl=trainControl)
+    
+    # collect resamples
+    results <- resamples(list(RPART=fit.model1, TREEBAG=fit.model2))
+    
+    # summarize differences between models
+    summary(results)
+    
+    # box and whisker plots to compare models
+    scales <- list(x=list(relation="free"), y=list(relation="free"))
+    bwplot(results, scales=scales)
+    
+    # dot plots of accuracy
+    scales <- list(x=list(relation="free"), y=list(relation="free"))
+    dotplot(results, scales=scales)
+    
+    # pairwise scatter plots of predictions to compare models
+    splom(results)
+    
+    
+    # 
+    # # Create a Random Forest model with default parameters
+    # model1 <- randomForest(rating ~ ., data = myTrainSubset[colNames], importance = TRUE, mtry=6)
+    # model1
+    # print(model1)
+    
+    dart.parm <- list(booster = "dart", rate_drop = 0.1, nthread = 4, eta = 0.1, max_depth = 3, subsample = 1, eval_metric = "rmse")
+    rowNames <- rownames(myTrainSubset)
+    dart <- xgboost(data = as.matrix(myTrainSubset[,-1]), label = rownames(myTrainSubset[,-1]), params = dart.parm, nrounds = 50, verbose = 0, seed = 2017)
+    colNames <- names(myTrainSubset[, -1])
+    colNames
+    pred1 <- predict(dart, as.matrix(myTrainSubset[, -1]))
+    pred2 <- predict(dart, as.matrix(myTest[colNames]))
+    roc(as.factor(myTrainSubset$rating), pred1)
+    # Area under the curve: 0.7734
+    roc(as.factor(myTest$rating), pred2)
+    # Area under the curve: 0.6517
+    
+    
+    ##ctree2 with CV
+      fitControl <- trainControl(method = 'cv', number=6,summaryFunction=defaultSummary)
+      set.seed(123)
+      Grid <- expand.grid(maxdepth = seq(10, 30,5),mincriterion=0.95)
+    
+      formula <- rating ~   userId + movieId + Drama + Comedy + Action
+      fit.ctree2CV <- train(formula, data=myTrainSubset, method = 'ctree2',
+                            trControl=fitControl,tuneGrid=Grid,metric='RMSE')
+      print(fit.ctree2CV)
+      predict <- predict(fit.ctree2CV, as.matrix(myTest[c("userId","movieId","Drama","Comedy","Action")]))
+      rmse <- myRMSE(myTest$rating,predict)
+      rmse
+      #results <- resamples(list(CTREE2=fit.ctree2CV))
+}
 
 ```
