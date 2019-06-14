@@ -343,7 +343,7 @@ again.
 ```{r}
 
 loadFromFile <- FALSE
-#loadFromFile <- TRUE  ## Comment out this line if we don't want to reload the ojbects from files
+loadFromFile <- TRUE  ## Comment out this line if we don't want to reload the ojbects from files
 
 # load the data from the saved file, if the loadFromFile parameter is true. Otherwise, no-op.
 edx <- restoreEdx(loadFromFile)
@@ -380,6 +380,13 @@ movieDataWithGenre <- myPreProcess(rbind(d1,d2)) # Preprocess and get subsets of
 glimpse(movieDataWithGenre)
 myTrain <- movieDataWithGenre %>% filter(test==FALSE) %>% select (-test,-genres)
 myTest  <- movieDataWithGenre %>% filter(test==TRUE) %>% select (-test) 
+
+## Save processed train and test data to files,
+## so that they can be reloaded later, instead of created from scratch.
+myTrainFileName <- "~/movieLensMyTrain.rds"
+myTestFileName  <- "~/movieLensMyTest.rds"
+saveWork(myTrainFileName,myTrain,TRUE)
+saveWork(myTestFileName,myTest,TRUE)
 
 rm(d1,d2,movieDataWithGenre)
 ```
@@ -519,6 +526,7 @@ if(!require(randomForest)) install.packages("randomForest", repos = repo)
 if(!require(inTrees)) install.packages("inTrees", repos = repo) #Used by rfRules model
 if(!require(xgboost)) install.packages("xgboost", repos = repo)
 if(!require(pROC)) install.packages("pROC", repos = repo)  #provides the roc function.
+if(!require(matrixStats)) install.packages("matrixStats", repos = repo)  #provides the roc function.
 
 #Determine factors that contribute the most variablity, and show a heatmap of a random sample of rows, ordered
 #from highest variable factor to least variable.
@@ -528,7 +536,7 @@ sds <- colSds(x, na.rm = TRUE)
 o <- order(sds, decreasing = TRUE)[1:19]
 dim(x)
 #Draw a heatmap, using a subset of the data
-x2 <- as.matrix(getSubset(x[,o],myTrain$rating,0.05))
+x2 <- as.matrix(getSubset(x[,o],myTrain$rating,0.0005))
 dim(x2)
 sds2 <- colSds(x2, na.rm = TRUE)
 o2 <- order(sds2, decreasing = TRUE)[1:19]
@@ -560,21 +568,27 @@ names(myTrain[colNames])
 
 # prepare training scheme  ##number and repeats set lower for faster executiion
 
-#Alter myTrain to have fewer columns
-myTrain <- myTrain[colNames]
-trainControl <- trainControl(method="repeatedcv", number=5, repeats=2)
+#Alter myTrain to have fewer rows because training on 10MM rows takes wayyy too long!
+myTrainSubset <- getSubset(myTrain[colNames],myTrain$rating,0.01)
+#trainControl <- trainControl(method="repeatedcv", number=5, repeats=2)
+
+trainControl <- trainControl(method="LGOCV",
+                             number=4,
+                             returnData = FALSE,
+                             trim = TRUE,
+                             allowParallel = TRUE
+                                 )
 
 metric <- "RMSE"
-metric <- "rmse"
 
 # CART
 set.seed(7)
-fit.model1 <- train(rating ~ ., data =myTrain, method="rpart", metric = metric, maximize = FALSE,
+fit.model1 <- train(rating ~ ., data =myTrainSubset, method="rpart", metric = metric, maximize = FALSE,
     trControl=trainControl)
 
 # Second Model
 set.seed(7)
-fit.model2 <- train(rating~., data=myTrain, method="treebag", metric = metric, maximize = FALSE, na.action = na.omit,
+fit.model2 <- train(rating~., data=myTrainSubset, method="treebag", metric = metric, maximize = FALSE, na.action = na.omit,
                 trControl=trainControl)
 
 # collect resamples
@@ -597,18 +611,18 @@ splom(results)
 
 # 
 # # Create a Random Forest model with default parameters
-# model1 <- randomForest(rating ~ ., data = myTrain[colNames], importance = TRUE, mtry=6)
+# model1 <- randomForest(rating ~ ., data = myTrainSubset[colNames], importance = TRUE, mtry=6)
 # model1
 # print(model1)
 
 dart.parm <- list(booster = "dart", rate_drop = 0.1, nthread = 4, eta = 0.1, max_depth = 3, subsample = 1, eval_metric = "rmse")
-rowNames <- rownames(myTrain)
-dart <- xgboost(data = as.matrix(myTrain[,-1]), label = rownames(myTrain[,-1]), params = dart.parm, nrounds = 50, verbose = 0, seed = 2017)
-colNames <- names(myTrain[, -1])
+rowNames <- rownames(myTrainSubset)
+dart <- xgboost(data = as.matrix(myTrainSubset[,-1]), label = rownames(myTrainSubset[,-1]), params = dart.parm, nrounds = 50, verbose = 0, seed = 2017)
+colNames <- names(myTrainSubset[, -1])
 colNames
-pred1 <- predict(dart, as.matrix(myTrain[, -1]))
+pred1 <- predict(dart, as.matrix(myTrainSubset[, -1]))
 pred2 <- predict(dart, as.matrix(myTest[colNames]))
-roc(as.factor(myTrain$rating), pred1)
+roc(as.factor(myTrainSubset$rating), pred1)
 # Area under the curve: 0.7734
 roc(as.factor(myTest$rating), pred2)
 # Area under the curve: 0.6517
@@ -620,7 +634,7 @@ roc(as.factor(myTest$rating), pred2)
   Grid <- expand.grid(maxdepth = seq(10, 30,5),mincriterion=0.95)
 
   formula <- rating ~   userId + movieId + Drama + Comedy + Action
-  fit.ctree2CV <- train(formula, data=myTrain, method = 'ctree2', trControl=fitControl,tuneGrid=Grid,metric='RMSE')
+  fit.ctree2CV <- train(formula, data=myTrainSubset, method = 'ctree2', trControl=fitControl,tuneGrid=Grid,metric='RMSE')
   print(fit.ctree2CV)
   predict <- predict(fit.ctree2CV, as.matrix(myTest[c("userId","movieId","Drama","Comedy","Action")]))
   rmse <- myRMSE(myTest$rating,predict)
