@@ -57,7 +57,7 @@ https://github.com/pjbMit/movieLensProject
 
 and here are links to Git Hub for my R Code Script, my Report Script and the related PDF Report file:
 
-[Movie_Lens_Script.Rmd](http://htmlpreview.github.io/?https://github.com/pjbMit/movieLensProject/blob/master/Movie_Lens_Script.Rmd "Movie Lens R Script")
+[Movie_Lens_R_Script.nb.html](http://htmlpreview.github.io/?https://github.com/pjbMit/movieLensProject/blob/master/Movie_Lens_R_Script.nb.html "Movie Lens R Script")
 
 [Movie_Lens_Report.Rmd](http://htmlpreview.github.io/?https://github.com/pjbMit/movieLensProject/blob/master/Movie_Lens_Report.Rmd "Movie Lens Report Rmd file")
 
