@@ -100,7 +100,7 @@ Don't forget the github link:  https://github.com/pjbMit/movieLensProject
 3) RMSE will be used to evaluate how close your predictions are to the true values in the validation set.
 
 
-## Set up.
+Set up.
 
 First set up a few logical variables in the global environment,
 then install packages and load libraries if and as needed.
@@ -118,10 +118,10 @@ runningInScript <-TRUE # TRUE/FALSE value to skip portions of the script,or load
 #runningInScript <-FALSE  # uncomment this line when pasting this code to the Report Rmd file.
 
 loadFromFile <- FALSE
-#loadFromFile <- TRUE  ## Comment out this line if we don't want to reload the ojbects from files
+loadFromFile <- TRUE  ## Comment out this line if we don't want to reload the ojbects from files
 
 load_edx_and_validation <- FALSE
-#load_edx_and_validation <- TRUE ## Comment out this line if we don't want to reload the ojbects from files
+load_edx_and_validation <- TRUE ## Comment out this line if we don't want to reload the ojbects from files
 
 # To make computations faster, when developing the code, 
 # set a flag to FALSE to make this script only use a small subset of the training data.
@@ -324,8 +324,9 @@ if((runningInScript && loadFromFile == TRUE) || (!runningInScript)){
     restoreEdx(loadFromFile)
     restoreValidation(loadFromFile)
 } 
-glimpse(edx)
-glimpse(validation)
+
+if(exists("edx")) glimpse(edx)
+if(exists("validation")) glimpse(validation)
 
 ```
 
@@ -396,14 +397,15 @@ transmute(userId=userId,
           titleId=as.factor(title),
           genres=as.factor(genres))
 dim(factors) #just to see the value
-tmp  <- cbind(factors,genreDf,tibble(test=data$test))
+#tmp  <- cbind(factors,genreDf,tibble(test=data$test))
 
 # Get the movie data with factors and genres, 
 # and add the rating, which is the random variable we want to predict, as the last column
-movieDataWithGenre <<- as_data_frame(tmp) %>% 
+movieDataWithGenre <<- as_data_frame(cbind(factors,genreDf,tibble(test=data$test))) %>% 
                     mutate(rating=data$rating)
-rm(tmp)
-as_data_frame(movieDataWithGenre)#And return the now preProcessed data frame that is the result.
+#rm(tmp)
+#as_data_frame(movieDataWithGenre)#And return the now preProcessed data frame that is the result.
+movieDataWithGenre#And return the now preProcessed data frame that is the result.
 }
 
 #
@@ -503,8 +505,8 @@ Here we show a few summary visualizations of the data.
 #cor(myTrain[,6],myTrain[,2])
 
 #Histogram of ratings
-x <- myTest[,23]
-n <- names(myTest)[23]
+x <- myTest[,"rating"]$rating
+n <-"rating" #names(myTest)[24]
 is.numeric(x)
 hist(x, main=n)
 #Note: using myTest for the histogram instead of myTrain, 
@@ -681,8 +683,7 @@ Additional examination, and trying different models.
 #Determine factors that contribute the most variablity, and show a heatmap of a random sample of rows, ordered
 #from highest variable factor to least variable.
 
-#Only do the additional analysis if runningInScript is TRUE
-if(runningInScript){
+
     #runningInScript
     print("runningInScript is TRUE")
     x<-as.matrix(myTrain[5:23])
@@ -695,6 +696,9 @@ if(runningInScript){
     sds2 <- colSds(x2, na.rm = TRUE)
     o2 <- order(sds2, decreasing = TRUE)[1:19]
     heatmap(x2[,o2], col = RColorBrewer::brewer.pal(11, "Spectral"))
+```
+
+```{r Additional_Analysis2}
     o2
     sds2
     apply(x2,MARGIN=2,mean)
@@ -750,14 +754,14 @@ if(runningInScript){
                         trControl=trainControl)
     
     # collect resamples
-    results <- resamples(list(RPART=fit.model1, TREEBAG=fit.model2))
+    results <<- resamples(list(RPART=fit.model1, TREEBAG=fit.model2))
     
     # summarize differences between models
     summary(results)
     
     # box and whisker plots to compare models
     par(1,2)
-    scales <- list(x=list(relation="free"), y=list(relation="free"))
+    scales <<- list(x=list(relation="free"), y=list(relation="free"))
     bwplot(results, scales=scales)
     
     # print("second chart")
@@ -768,9 +772,7 @@ if(runningInScript){
     # pairwise scatter plots of predictions to compare models
    # splom(results)
     
-    
-   
-}
+
 
 
 ```
