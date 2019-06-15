@@ -42,7 +42,7 @@ The next models built were a movie effect model, a movie effect plus user effect
 |Movie Effect Model                    | 0.9439087|
 |Movie + User Effects Model            | 0.8653488|
 |Regularized Movie Effect Model        | 0.9438538|
-|Regularized Movie + User Effect Model | 0.8648170|
+|Regularized Movie + User Effect Model | 0.8196661|
 
 We then went on to further explore the data, looking at variability in the predictors and trying different models and methods such as cross-validation to see if we could further improve the model, but found that none of the efforts improved upon the best result shown above.
 
@@ -701,7 +701,7 @@ rmse_results %>% knitr::kable()
 ```
 
 
-As the resuts show, we achieved satisfactory results from the tuned regularized movie effect model with user affect added.  At this point, with a best RMSE value of 0.8648170, we have achieved our goal.
+As the resuts show, we achieved satisfactory results from the tuned regularized movie effect model with user affect added.  At this point, with a best RMSE value of 0.8196661, we have achieved our goal.
 
 The code and comments below are to show further exploration and further analysis that was done on the data to try to improve the result.  After substantial analysis, and trying multiple techniques, including attempting to apply the genre data to improve results, I determined that the tuned regularized movie effect with user effect model produced the best results. 
 
@@ -720,19 +720,21 @@ Additional examination, and trying different models.
 
     #runningInScript
     print("runningInScript is TRUE")
-    x<-as.matrix(myTrain[5:23])
+    # x<-as.matrix(myTrain[5:23])
+    x<-as.matrix(myTest[4:22])
     sds <- colSds(x, na.rm = TRUE)
     o <- order(sds, decreasing = TRUE)[1:19]
     dim(x)
     #Draw a heatmap, using a subset of the data
-    x2 <- as.matrix(getSubset(x[,o],myTrain$rating,0.0005))
+    #x2 <- as.matrix(getSubset(x[,o],myTrain$rating,0.0005))
+    x2 <- as.matrix(getSubset(x[,o],myTest$rating,0.005))
     dim(x2)
     sds2 <- colSds(x2, na.rm = TRUE)
     o2 <- order(sds2, decreasing = TRUE)[1:19]
     heatmap(x2[,o2], col = RColorBrewer::brewer.pal(11, "Spectral"))
 ```
 
-The heat map above shows that most of the variation in the ratings is within the five genres of Romance, Comedy, Thriller, Horror and Sci-Fi.  
+The heat map above shows that the largest variation in ratings is within the  Drama, Comedy and Romance categories.  
 
 ```{r Additional_Analysis2}
     o2
@@ -816,7 +818,7 @@ The heat map above shows that most of the variation in the ratings is within the
 ```
 
 
-The Box and Whisker plot above shows that RPART algorithm tends to make more precise, yet less accurate predictions when compared to the TREEBAG algorith.  
+The Box and Whisker plot above shows that RPART algorithm has less variabiliy in its RMSE residuals than the TREEBAG algorithm.  It also demonstrates how different measures can vary between two models.
 
 
 ```{r dot_plot}
@@ -826,7 +828,7 @@ The Box and Whisker plot above shows that RPART algorithm tends to make more pre
     dotplot(results, scales=scales)
 ```
 
-While the dot plot above clearly shows that TREEBAG algorithm has greater variability in the residual values than the RPART algorithm.
+The dot plot above shows more clearly that TREEBAG algorithm has greater variability in the RMSE values than the RPART algorithm.
 
 
 # Part 4) CONCLUSION
@@ -835,6 +837,6 @@ Processing 10 million rows of data on a personal laptop computer can be challeng
 
 I discovered a library and options to set to enable multi-core parallel processing for some of the algorithms in the **caret** package, and this technique helped tremendously, as I was able to span 8 R-sessions that ran in parallel to process some of the algorithms.  
 
-Ultimately, the best results that I obtained were a **RMSE of 0.8648170** which was obtained ffrom the Tuned Regularized Movie + User Effect Model.  This was deemed satisfactory based on criteria outlined in the problem statement and the provided grading rubric, and thus, after further exploration failed to improve the model, I concluded my work to present these findings which are considered a success.
+Ultimately, the best results that I obtained were a **RMSE of 0.8196661** which was obtained ffrom the Tuned Regularized Movie + User Effect Model.  This was deemed satisfactory based on criteria outlined in the problem statement and the provided grading rubric, and thus, after further exploration failed to improve the model, I concluded my work to present these findings which are considered a success.
 
 
