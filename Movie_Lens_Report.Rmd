@@ -456,7 +456,7 @@ if(runningInScript) {
     d1 <- data %>% mutate(test=FALSE)
     d2 <- validation %>% mutate(test=TRUE)
     
-    movieDataWithGenre <- myPreProcess(rbind(d1,d2)) # Preprocess and get subsets of the data
+    movieDataWithGenre <-tibble(myPreProcess(rbind(d1,d2))) # Preprocess and get subsets of the data
     glimpse(movieDataWithGenre)
     myTrain <- movieDataWithGenre %>% filter(test==FALSE) %>% select (-test,-genres)
     myTest  <- movieDataWithGenre %>% filter(test==TRUE) %>% select (-test) 
