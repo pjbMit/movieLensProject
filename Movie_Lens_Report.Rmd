@@ -84,6 +84,7 @@ Here are the methods and techniques used.
 * The data was separated into a testing and a training set.
 * The data was processed and left-joins were used to ensure that all users and all movies in the test set were also in the training set.
 * The movie data includes a ***genre*** field, which is a pipe ("|") delimited text field that that classifies each movie as belonging to one or more of a list of named genres.  This field was parsed to create one column for each genere, with a value of 1 if the movie is part of that genre, and a value of 0 if the movie is not.
+* Next we visualized some descriptive and summary information about the dataset.
 * Next, the naive model, the movie effect model and the movie effect and user effect models were created and scored.
 * We then create a Regularized Movie Effect Model, which was tuned to optimize the parameter lambda.
 * We followed up with a Regularized Movie Effect model with user effect added in, which produced excellent results.
@@ -490,6 +491,16 @@ if(!runningInScript){
 
 ```
 
+Here we show a few summary visualizations of the data.
+
+```{r Visualize_the_Data}
+
+```
+
+
+
+
+Next we move on to building a predictive model.
 First look at the most naive approach... and notice that 3.51 is the mu_hat that has the lowest RMSE.
 ```{r Fit_And_Tune_Model}
 # Using model Y_u_i = U + E_u_i
@@ -563,6 +574,10 @@ rmse_results <- bind_rows(rmse_results,
                                      RMSE = model_3_rmse))
 rmse_results 
 ```
+
+
+
+
 # Part 3) RESULTS {#Best-Results}
 
 Here's a link [back to the Summary](#Summary) section of this script.
