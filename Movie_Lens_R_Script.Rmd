@@ -117,11 +117,13 @@ consuming processing tasks.
 runningInScript <-TRUE # TRUE/FALSE value to skip portions of the script,or load from files if running the report.
 #runningInScript <-FALSE  # uncomment this line when pasting this code to the Report Rmd file.
 
+preProcessData <- FALSE #TRUE / FALSE to pre process the data, or to skip pre processing to use previously computed data.
+
 loadFromFile <- FALSE
 loadFromFile <- TRUE  ## Comment out this line if we don't want to reload the ojbects from files
 
 load_edx_and_validation <- FALSE
-load_edx_and_validation <- TRUE ## Comment out this line if we don't want to reload the ojbects from files
+#load_edx_and_validation <- TRUE ## Comment out this line if we don't want to reload the ojbects from files
 
 # To make computations faster, when developing the code, 
 # set a flag to FALSE to make this script only use a small subset of the training data.
@@ -264,7 +266,7 @@ if(runningInScript && loadFromFile == FALSE){
     ## so this allowed me to save intermediate results into files, and reload them later
     ## to continue processing.
     
-    saveProgress <- TRUE
+    #saveProgress <- TRUE
     saveProgress <- FALSE  # Set to false, and intermediate files WILL NOT be saved.
     
     saveWork(t1,ratings,saveProgress)
@@ -312,7 +314,7 @@ if(runningInScript && loadFromFile == FALSE){
     #    objectName <- load(file)
     #without having to download and process the data again.
     
-    saveProgress <- TRUE
+    #saveProgress <- TRUE
     saveWork(edxFile,edx,saveProgress)
     saveWork(validationFile,validation,saveProgress)
     
@@ -449,7 +451,7 @@ Run on the full set of data once development is completed, and it works.
 ##Preprocess and get either the training data, or a subset it, depending on the value of inDevlopment.
 ## If certain booleans are set, then load myTest and myTrain from pre-saved files those objects don't already exist.
 print("PreProcessing")
-if(runningInScript) {
+if(preProcessData) {
     #RunningInSCript
     print("RunningInScript")
     data <- getData(edx,inDevelopment)  # Get the training data, or a subset of it.
@@ -476,7 +478,7 @@ if(runningInScript) {
     rm(data,d1,d2,movieDataWithGenre)
 }
 
-if(!runningInScript){
+if(!preProcessData){
     #!runningInScript
     # print("NOT RunningInScript")
     #Load myTrain object from a file if boolean flags are set, and if the object doesn't already exist.
@@ -624,7 +626,7 @@ Here's a link [back to the Summary](#Summary) section of this script.
 if(runningInScript){
     #RunningInScript
     print("RunningInScript is TRUE")
-    lambdas <<- seq(0, 10, 0.25)
+    lambdas <<- seq(2, 7, 0.25)
     
     rmses <<- sapply(lambdas, function(l){
           mu <<- mean(myTrain$rating)
@@ -684,18 +686,17 @@ Additional examination, and trying different models.
 #from highest variable factor to least variable.
 
 
-    #runningInScript
-    print("runningInScript is TRUE")
-    x<-as.matrix(myTrain[5:23])
-    sds <- colSds(x, na.rm = TRUE)
-    o <- order(sds, decreasing = TRUE)[1:19]
-    dim(x)
-    #Draw a heatmap, using a subset of the data
-    x2 <- as.matrix(getSubset(x[,o],myTrain$rating,0.0005))
-    dim(x2)
-    sds2 <- colSds(x2, na.rm = TRUE)
-    o2 <- order(sds2, decreasing = TRUE)[1:19]
-    heatmap(x2[,o2], col = RColorBrewer::brewer.pal(11, "Spectral"))
+x<-as.matrix(myTest[4:22])   # Use the smaller test data set for the heat map. The trend will still be valid.
+sds <- colSds(x, na.rm = TRUE)
+o <- order(sds, decreasing = TRUE)[1:19]
+dim(x)
+#Draw a heatmap, using a subset of the data
+#x2 <- as.matrix(getSubset(x[,o],myTrain$rating,0.0005))
+x2 <- as.matrix(getSubset(x[,o],myTest$rating,0.005))
+dim(x2)
+sds2 <- colSds(x2, na.rm = TRUE)
+o2 <- order(sds2, decreasing = TRUE)[1:19]
+heatmap(x2[,o2], col = RColorBrewer::brewer.pal(11, "Spectral"))
 ```
 
 ```{r Additional_Analysis2}

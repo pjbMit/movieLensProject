@@ -42,7 +42,8 @@ The next models built were a movie effect model, a movie effect plus user effect
 |Movie Effect Model                    | 0.9439087|
 |Movie + User Effects Model            | 0.8653488|
 |Regularized Movie Effect Model        | 0.9438538|
-|Regularized Movie + User Effect Model | 0.8196661|
+|Regularized Movie + User Effect Model | 0.8648170|
+
 
 We then went on to further explore the data, looking at variability in the predictors and trying different models and methods such as cross-validation to see if we could further improve the model, but found that none of the efforts improved upon the best result shown above.
 
@@ -128,6 +129,8 @@ consuming processing tasks.
 
 runningInScript <-TRUE # TRUE/FALSE value to skip portions of the script,or load from files if running the report.
 runningInScript <-FALSE  # uncomment this line when pasting this code to the Report Rmd file.
+
+preProcessData <- FALSE #TRUE / FALSE to pre process the data, or to skip pre processing to use previously computed data.
 
 loadFromFile <- TRUE
 #loadFromFile <- TRUE  ## Comment out this line if we don't want to reload the ojbects from files
@@ -463,7 +466,7 @@ Run on the full set of data once development is completed, and it works.
 ##Preprocess and get either the training data, or a subset it, depending on the value of inDevlopment.
 ## If certain booleans are set, then load myTest and myTrain from pre-saved files those objects don't already exist.
 print("PreProcessing")
-if(runningInScript) {
+if(preProcessData) {
     #RunningInSCript
     print("RunningInScript")
     data <- getData(edx,inDevelopment)  # Get the training data, or a subset of it.
@@ -490,7 +493,7 @@ if(runningInScript) {
     rm(data,d1,d2,movieDataWithGenre)
 }
 
-if(!runningInScript){
+if(!preProcessData){
     #!runningInScript
     # print("NOT RunningInScript")
     #Load myTrain object from a file if boolean flags are set, and if the object doesn't already exist.
@@ -650,7 +653,7 @@ Next we ran the code below to tune the lambda parameter used by regularizatio mo
 if(runningInScript){
     #RunningInScript
     print("RunningInScript is TRUE")
-    lambdas <<- seq(0, 10, 0.25)
+    lambdas <<- seq(2, 7, 0.25)
     
     rmses <<- sapply(lambdas, function(l){
           mu <<- mean(myTrain$rating)
@@ -701,7 +704,7 @@ rmse_results %>% knitr::kable()
 ```
 
 
-As the resuts show, we achieved satisfactory results from the tuned regularized movie effect model with user affect added.  At this point, with a best RMSE value of 0.8196661, we have achieved our goal.
+As the resuts show, we achieved satisfactory results from the tuned regularized movie effect model with user affect added.  At this point, with a best RMSE value of 0.8648170, we have achieved our goal.
 
 The code and comments below are to show further exploration and further analysis that was done on the data to try to improve the result.  After substantial analysis, and trying multiple techniques, including attempting to apply the genre data to improve results, I determined that the tuned regularized movie effect with user effect model produced the best results. 
 
@@ -717,98 +720,94 @@ Additional examination, and trying different models.
 #from highest variable factor to least variable.
 
 
-
-    #runningInScript
-    print("runningInScript is TRUE")
-    # x<-as.matrix(myTrain[5:23])
-    x<-as.matrix(myTest[4:22])
-    sds <- colSds(x, na.rm = TRUE)
-    o <- order(sds, decreasing = TRUE)[1:19]
-    dim(x)
-    #Draw a heatmap, using a subset of the data
-    #x2 <- as.matrix(getSubset(x[,o],myTrain$rating,0.0005))
-    x2 <- as.matrix(getSubset(x[,o],myTest$rating,0.005))
-    dim(x2)
-    sds2 <- colSds(x2, na.rm = TRUE)
-    o2 <- order(sds2, decreasing = TRUE)[1:19]
-    heatmap(x2[,o2], col = RColorBrewer::brewer.pal(11, "Spectral"))
+x<-as.matrix(myTest[4:22])   # Use the smaller test data set for the heat map. The trend will still be valid.
+sds <- colSds(x, na.rm = TRUE)
+o <- order(sds, decreasing = TRUE)[1:19]
+dim(x)
+#Draw a heatmap, using a subset of the data
+#x2 <- as.matrix(getSubset(x[,o],myTrain$rating,0.0005))
+x2 <- as.matrix(getSubset(x[,o],myTest$rating,0.005))
+dim(x2)
+sds2 <- colSds(x2, na.rm = TRUE)
+o2 <- order(sds2, decreasing = TRUE)[1:19]
+heatmap(x2[,o2], col = RColorBrewer::brewer.pal(11, "Spectral"))
 ```
 
 The heat map above shows that the largest variation in ratings is within the  Drama, Comedy and Romance categories.  
 
 ```{r Additional_Analysis2}
-    o2
-    sds2
-    apply(x2,MARGIN=2,mean)
-    colnames(x2)
-    
-    top <- x2[1,2:5]
-    cols <- names(top)
-    #These are the attributes that add the most variability to the data
-    cols
-    
-    colNames <- names(myTrain)[1:7]
-    
-    #ReOrder columns, removing titleID, and putting ratings as the first column
-    tmp2 = names(myTrain)[1]
-    tmp3 = names(myTrain)[2]
-    colNames[1] <- "rating"  #Remove titleId, and replace it with "rating"
-    colNames[2] <- tmp2
-    colNames[3] <- tmp3
-    
-    #Show order of columns
-    names(myTrain[colNames])
-    
-    # See list of models available in caret
-    #names(getModelInfo())
-    
-    # prepare training scheme  ##number and repeats set lower for faster executiion
-    
-    #Alter myTrain to have fewer rows because training on 10MM rows takes wayyy too long!
-    myTrainSubset <- getSubset(myTrain[colNames],myTrain$rating,0.01)
-    #trainControl <- trainControl(method="repeatedcv", number=5, repeats=2)
-    
-    trainControl <- trainControl(method="LGOCV",
-                                 number=4,
-                                 returnData = FALSE,
-                                 trim = TRUE,
-                                 allowParallel = TRUE
-                                     )
-    
-    metric <- "RMSE"
-    
-    # CART
-    set.seed(7)
-    fit.model1 <- train(rating ~ ., data =myTrainSubset, method="rpart", metric = metric, maximize = FALSE,
-        trControl=trainControl)
-    
-    # Second Model
-    set.seed(7)
-    fit.model2 <- train(rating~., data = myTrainSubset, 
-                        method = "treebag", 
-                        metric = metric, 
-                        maximize = FALSE, 
-                        na.action = na.omit,
-                        trControl=trainControl)
-    
-    # collect resamples
-    results <<- resamples(list(RPART=fit.model1, TREEBAG=fit.model2))
-    
-    # summarize differences between models
-    summary(results)
-    
-    # box and whisker plots to compare models
-    par(1,2)
-    scales <<- list(x=list(relation="free"), y=list(relation="free"))
-    bwplot(results, scales=scales)
-    
-    # print("second chart")
-    # # dot plots of accuracy
-    # #scales <- list(x=list(relation="free"), y=list(relation="free"))
-    # dotplot(results, scales=scales)
-    # 
-    # pairwise scatter plots of predictions to compare models
-   # splom(results)
+o2
+sds2
+apply(x2,MARGIN=2,mean)
+colnames(x2)
+
+top <- x2[1,2:5]
+cols <- names(top)
+#These are the attributes that add the most variability to the data
+cols
+
+colNames <- names(myTrain)[1:7]
+
+#ReOrder columns, removing titleID, and putting ratings as the first column
+tmp2 = names(myTrain)[1]
+tmp3 = names(myTrain)[2]
+colNames[1] <- "rating"  #Remove titleId, and replace it with "rating"
+colNames[2] <- tmp2
+colNames[3] <- tmp3
+
+#Show order of columns
+names(myTrain[colNames])
+
+# See list of models available in caret
+#names(getModelInfo())
+
+# prepare training scheme  ##number and repeats set lower for faster executiion
+
+#Alter myTrain to have fewer rows because training on 10MM rows takes wayyy too long!
+myTrainSubset <- getSubset(myTrain[colNames],myTrain$rating,0.01)
+#trainControl <- trainControl(method="repeatedcv", number=5, repeats=2)
+
+trainControl <- trainControl(method="LGOCV",
+                             number=4,
+                             returnData = FALSE,
+                             trim = TRUE,
+                             allowParallel = TRUE
+                                 )
+
+metric <- "RMSE"
+
+# CART
+set.seed(7)
+fit.model1 <- train(rating ~ ., data =myTrainSubset, method="rpart", metric = metric, maximize = FALSE,
+    trControl=trainControl)
+
+# Second Model
+set.seed(7)
+fit.model2 <- train(rating~., data = myTrainSubset, 
+                    method = "treebag", 
+                    metric = metric, 
+                    maximize = FALSE, 
+                    na.action = na.omit,
+                    trControl=trainControl)
+
+# collect resamples
+results <<- resamples(list(RPART=fit.model1, TREEBAG=fit.model2))
+
+# summarize differences between models
+summary(results)
+
+# box and whisker plots to compare models
+par(1,2)
+scales <<- list(x=list(relation="free"), y=list(relation="free"))
+bwplot(results, scales=scales)
+
+# print("second chart")
+# # dot plots of accuracy
+# #scales <- list(x=list(relation="free"), y=list(relation="free"))
+# dotplot(results, scales=scales)
+# 
+# pairwise scatter plots of predictions to compare models
+# splom(results)
     
     
    
@@ -837,6 +836,6 @@ Processing 10 million rows of data on a personal laptop computer can be challeng
 
 I discovered a library and options to set to enable multi-core parallel processing for some of the algorithms in the **caret** package, and this technique helped tremendously, as I was able to span 8 R-sessions that ran in parallel to process some of the algorithms.  
 
-Ultimately, the best results that I obtained were a **RMSE of 0.8196661** which was obtained ffrom the Tuned Regularized Movie + User Effect Model.  This was deemed satisfactory based on criteria outlined in the problem statement and the provided grading rubric, and thus, after further exploration failed to improve the model, I concluded my work to present these findings which are considered a success.
+Ultimately, the best results that I obtained were a **RMSE of 0.8648170** which was obtained ffrom the Tuned Regularized Movie + User Effect Model.  This was deemed satisfactory based on criteria outlined in the problem statement and the provided grading rubric, and thus, after further exploration failed to improve the model, I concluded my work to present these findings which are considered a success.
 
 
