@@ -329,19 +329,11 @@ glimpse(validation)
 
 ```
 
-## General approach:
-
-For many approaches, I will first try on a very small data set, just to get the code working,
-the re-run on a medium sized data set, and then when I am satisfied, run on the full edx training set.
-
-Similarly, initially I will NOT do full cross-validation, but once I have code working, then I will.
-
-SET UP libraries and enable turn multi-core processing 
-for some of operations used by the caret package.
 
 Now that the edx object and the validation object are both saved on the file system, so as a short-cut I can reload
 those objects from disk to run my code, rather than having to download and process the raw data multiple times
 during development.
+
 
 ```{r Define_Functions}
 #Defines many of the functions that the script calls
@@ -530,10 +522,6 @@ corrplot(correlations, method="circle") # create correlation plot
 
 
 
-
-
-
-
 Next we move on to building a predictive model.
 First look at the most naive approach... and notice that 3.51 is the mu_hat that has the lowest RMSE.
 
@@ -611,6 +599,7 @@ rm(edx,validation,user_avgs,movie_avgs,movie_reg_avgs) #free memory
 rmse_results 
 
 ```
+
 ## Best Results {#Best-Results}
 
 Now we will tune the parameter lambda.   
@@ -674,7 +663,6 @@ rmse_results %>% knitr::kable()
 
 
 ```
-
 
 Additional examination, and trying different models.
 ```{r Additional_Analysis}
@@ -779,7 +767,7 @@ if(runningInScript){
 
 ```
 
-```{r}
+```{r dot_plot}
  print("second chart")
     # dot plots of accuracy
     #scales <- list(x=list(relation="free"), y=list(relation="free"))

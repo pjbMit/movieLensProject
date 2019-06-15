@@ -113,7 +113,6 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
-
 First set up a few logical variables in the global environment,
 then install packages and load libraries if and as needed.
 
@@ -123,13 +122,12 @@ computing the result.  This allows the script to be run to create a PDF report,
 or to be re-run without expedning the time needed for lengthy downloads or time
 consuming processing tasks.
 
-
 ```{r Global_Setup}
 #Also add another variable that lets me skip or alter how this code runs included in the report,
 #as opposed to running in this script.
 
 runningInScript <-TRUE # TRUE/FALSE value to skip portions of the script,or load from files if running the report.
-runningInScript <-FALSE  # uncomment this line when pasting this code to the Report Rmd file.
+#runningInScript <-FALSE  # uncomment this line when pasting this code to the Report Rmd file.
 
 loadFromFile <- FALSE
 loadFromFile <- TRUE  ## Comment out this line if we don't want to reload the ojbects from files
@@ -177,6 +175,8 @@ if(!require(inTrees)) install.packages("inTrees", repos = repos) #Used by rfRule
 if(!require(xgboost)) install.packages("xgboost", repos = repos)
 if(!require(pROC)) install.packages("pROC", repos = repos)  #provides the roc function.
 if(!require(matrixStats)) install.packages("matrixStats", repos = repos)  #provides the roc function.
+#if(!require(Amelia)) install.packages("Amelia", repos = repos) #provides missmap visualization
+if(!require(corrplot)) install.packages("corrplot", repos = repos)  #provides corrplot visualizarion
 
 #Function that if passed save==TRUE with save the object to the file.
 #  otherwise returns without doing anything
@@ -194,7 +194,6 @@ saveWork <- function(file,object,save){
 
 ```
 
-
 Data is downloaded from  https://grouplens.org/datasets/movielens/10m/
 
 and then a subset is selected by running this code which is given in the assignment's instructions:
@@ -206,17 +205,47 @@ First) I needed to use a different repository to load the libraries, because rep
 Second) This R Code crashed RStudio repeatedly, so I created a function and added code to save objects as files,
         so that I could save intermediate results into a file, and then reload them if and as necessary if R crashed.
 With these two work-arounds, I was able to load and process all of the data without incident.
+
 ```{r create_edx_and_validation_sets}
 
 # 
 # Create edx set and validation set
 #
 
-# Note: this process could take a couple of minutes
+##Start by defining two functions that can restore previously saved results from the local filesystem.
 
-if(runningInScript){
+
+#Function to load the edx object from a saved file.
+#This allows faster re-runs of the code, by avoiding downloading and re-processing
+#the data through each development iteration.
+restoreEdx <- function(loadFromFile){
+    if(loadFromFile){
+        print("loading edx object from filesystem.")
+        edxFile <- "~/edxFile.rds"
+        edx <<- readRDS(edxFile)
+    }
+}
+
+#Function to load the validation object from a saved file.
+#This allows faster re-runs of the code, by avoiding downloading and re-processing
+#the data through each development iteration.
+restoreValidation <- function(loadFromFile){
+    if(loadFromFile){
+        print("loading validation object from filesystem.")
+        validationFile <- "~/validationFile.rds"
+        validation <<- readRDS(validationFile)
+    }
+}
+
+
+# Note: this process could take a couple of minutes
+#Download the 10M row movie lens data set, and process the data.
+#If we have already processed the data, then if the boolean flags are
+#set appropriately, save time by skipping the download and data processing,
+#and simply load pre-calculated results that were saved to the local file system.
+if(runningInScript && loadFromFile == FALSE){
     #runningInScript
-    print("runningInScript is TRUE")
+    print("runningInScript is TRUE, and loadFromFile is FALSE")
     # Create a bunch of file names in my directory to save intermediate results to files
     t1 <- "~/movieLens1.rds"
     t2 <- "~/movieLens2.rds"
@@ -303,37 +332,24 @@ if(runningInScript){
     rm(t1,t2,t3,t4,t5,t6,t7,t8,t9,t10)
 }
 
+if((runningInScript && loadFromFile == TRUE) || (!runningInScript)){
+    restoreEdx(loadFromFile)
+    restoreValidation(loadFromFile)
+} 
+glimpse(edx)
+glimpse(validation)
+
 ```
+
 
 
 Now that the edx object and the validation object are both saved on the file system, so as a short-cut I can reload
 those objects from disk to run my code, rather than having to download and process the raw data multiple times
 during development.
 
+
 ```{r Define_Functions}
 #Defines many of the functions that the script calls
-
-#Function to load the edx object from a saved file.
-#This allows faster re-runs of the code, by avoiding downloading and re-processing
-#the data through each development iteration.
-restoreEdx <- function(loadFromFile){
-    if(loadFromFile){
-        edxFile <- "~/edxFile.rds"
-        edx <- readRDS(edxFile)
-    }
-    edx
-}
-
-#Function to load the validation object from a saved file.
-#This allows faster re-runs of the code, by avoiding downloading and re-processing
-#the data through each development iteration.
-restoreValidation <- function(loadFromFile){
-    if(loadFromFile){
-        validationFile <- "~/validationFile.rds"
-        validation <- readRDS(validationFile)
-    }
-    validation
-}
 
 
 #Now define some utility functions and functions used to preProcess the data.
@@ -372,39 +388,35 @@ extractGenresData <- function(oneGenre,genresByMovie){
 ## It Accepts the training data frame, and returns a new data frame
 ## containing the preProcessed data
 myPreProcess <- function (data) {
-    ifelse(!runningInScript,
-    { #!runningInScript
-        print ("runningInScipt is FALSE")
-        
-    },
-    { #runningInScript
-    allGenres <- getAllGenres(data)   # gets all generes
-    allGenresStr <- allGenres$genres  # A vector with one entry for each unique genere  
-    rm(allGenres)
-    genresByMovie <- data %>% select(genres) # string containing multiple generes with | separator
-    oneRow <- extractGenresData("Comedy",genresByMovie)  #Get one row, just to test "extracting" one genre
-    glimpse(oneRow)
 
-    # For each movie, Extract genres into T/F columns
-    genreDf <- as_tibble(sapply(allGenresStr,extractGenresData,genresByMovie)) 
-    rm(allGenresStr)
-    
-    dim(genreDf)  #Just to see the value
+allGenres <- getAllGenres(data)   # gets all generes
+allGenresStr <- allGenres$genres  # A vector with one entry for each unique genere  
+rm(allGenres)
+genresByMovie <- data %>% select(genres) # string containing multiple generes with | separator
+oneRow <- extractGenresData("Comedy",genresByMovie)  #Get one row, just to test "extracting" one genre
+glimpse(oneRow)
 
-    #Now convert certain fields to factors, since they are intended as labels, and not meaningful numeric values.
-    factors <- data  %>%
-    transmute(userId=userId,
-              movieId=movieId,
-              titleId=as.factor(title),
-              genres=as.factor(genres))
-    dim(factors) #just to see the value
-    
-    # Get the movie data with factors and genres, 
-    # and add the rating, which is the random variable we want to predict, as the last column
-    moviesWithGenre <- cbind(factors,genreDf,tibble(test=data$test)) %>% 
-                        mutate(rating=data$rating)
-    moviesWithGenre #And return the now preProcessed data frame that is the result.
-    })
+# For each movie, Extract genres into T/F columns
+genreDf <- as_data_frame(sapply(allGenresStr,extractGenresData,genresByMovie)) 
+rm(allGenresStr)
+
+dim(genreDf)  #Just to see the value
+
+#Now convert certain fields to factors, since they are intended as labels, and not meaningful numeric values.
+factors <- data  %>%
+transmute(userId=userId,
+          movieId=movieId,
+          titleId=as.factor(title),
+          genres=as.factor(genres))
+dim(factors) #just to see the value
+tmp  <- cbind(factors,genreDf,tibble(test=data$test))
+
+# Get the movie data with factors and genres, 
+# and add the rating, which is the random variable we want to predict, as the last column
+movieDataWithGenre <<- as_data_frame(tmp) %>% 
+                    mutate(rating=data$rating)
+rm(tmp)
+as_data_frame(movieDataWithGenre)#And return the now preProcessed data frame that is the result.
 }
 
 #
@@ -443,6 +455,7 @@ PreProcess the data.
 During development, only preprocess a subset of the data so that code runs quickly.
 Run on the full set of data once development is completed, and it works.
 
+
 ```{r PreProcessing}
 
 ##Preprocess and get either the training data, or a subset it, depending on the value of inDevlopment.
@@ -456,11 +469,16 @@ if(runningInScript) {
     
     d1 <- data %>% mutate(test=FALSE)
     d2 <- validation %>% mutate(test=TRUE)
+    data <- rbind(d1,d2)
     
-    movieDataWithGenre <-tibble(myPreProcess(rbind(d1,d2))) # Preprocess and get subsets of the data
+    print("Starting to pre-process data...")
+    movieDataWithGenre <<-myPreProcess(data) # Preprocess and get subsets of the data
+    dim(as.matrix(movieDataWithGenre))
+    
+    print("pre-processing completed.")
     glimpse(movieDataWithGenre)
-    myTrain <- movieDataWithGenre %>% filter(test==FALSE) %>% select (-test,-genres)
-    myTest  <- movieDataWithGenre %>% filter(test==TRUE) %>% select (-test) 
+    myTrain <<- movieDataWithGenre %>% filter(test==FALSE) %>% select (-test,-genres)
+    myTest  <<- movieDataWithGenre %>% filter(test==TRUE) %>% select (-test) 
     
     ## Save processed train and test data to files,
     ## so that they can be reloaded later, instead of created from scratch.
@@ -491,17 +509,38 @@ if(!runningInScript){
 
 ```
 
+
+
 Here we show a few summary visualizations of the data.
 
+
+
 ```{r Visualize_the_Data}
+
+
+#cor(myTrain[,6],myTrain[,2])
+
+#Histogram of ratings
+hist(myTest[,24], main=names(myTrain)[24])
+
+##Shows a lot of 4's, and not many half-star ratings.
+
+#Correlations
+t <- myTrain %>% select (-titleId)
+correlations <- cor(t[,1:22]) #calculate correlations
+corrplot(correlations, method="circle") # create correlation plot
+##Shows that there are a few popular movie groups
+## such as Children Animation, and Action Adventure.
+## Also shows that you rarely see movies such as Comedy Thrillers, or Action Dramas
 
 ```
 
 
 
-
 Next we move on to building a predictive model.
 First look at the most naive approach... and notice that 3.51 is the mu_hat that has the lowest RMSE.
+
+
 ```{r Fit_And_Tune_Model}
 # Using model Y_u_i = U + E_u_i
 mu_hat <- mean(myTrain$rating)
@@ -530,7 +569,7 @@ predicted_ratings <- mu + myTest %>%
 predicted_ratings[is.na(predicted_ratings)]<-mu  ## use the mu_hat for any NA values
 #predicted_ratings <- tibble(rating=predicted_ratings) ## Get predicted ratings
 
-model_1_rmse <- myRMSE(predicted_ratings, myTest$rating)
+model_1_rmse <- myRMSE(myTest$rating, predicted_ratings)
 
 rmse_results <- bind_rows(rmse_results,
                           tibble(method="Movie Effect Model",  
@@ -550,7 +589,7 @@ predicted_ratings <- myTest %>%
   mutate(pred = mu + b_i + b_u) %>%
   pull(pred)
 
-model_2_rmse <- myRMSE(predicted_ratings, myTest$rating)
+model_2_rmse <- myRMSE(myTest$rating,predicted_ratings)
 rmse_results <- bind_rows(rmse_results,
                           tibble(method="Movie + User Effects Model",  
                                      RMSE = model_2_rmse))
@@ -568,13 +607,14 @@ predicted_ratings <- myTest %>%
   mutate(pred = mu + b_i) %>%
   pull(pred)
 
-model_3_rmse <- myRMSE(predicted_ratings, myTest$rating)
+model_3_rmse <- myRMSE(myTest$rating,predicted_ratings)
 rmse_results <- bind_rows(rmse_results,
                           tibble(method="Regularized Movie Effect Model",  
                                      RMSE = model_3_rmse))
+rm(edx,validation,user_avgs,movie_avgs,movie_reg_avgs) #free memory
 rmse_results 
-```
 
+```
 
 
 
@@ -589,50 +629,49 @@ Next we ran the code below to tune the lambda parameter used by regularizatio mo
   
 
 *(See the output below which shows best results obtained.)*
+
 ```{r Best_Results}
 
 # The estimates that minimize this can be found similarly to what we did above. 
-# Here we run the model multipe times to tune the model basedon the value of lambda.
+# Here we use cross-validation to pick a  lambda
 if(runningInScript){
     #RunningInScript
     print("RunningInScript is TRUE")
     lambdas <<- seq(0, 10, 0.25)
     
-    rmses <- sapply(lambdas, function(l){
-    
-      mu <<- mean(myTrain$rating)
-      
-      b_i <- myTrain %>% 
-        group_by(movieId) %>%
-        summarize(b_i = sum(rating - mu)/(n()+l))
-      
-      b_u <- myTrain %>% 
-        left_join(b_i, by="movieId") %>%
-        group_by(userId) %>%
-        summarize(b_u = sum(rating - b_i - mu)/(n()+l))
-    
-      predicted_ratings <- 
-        myTest %>% 
-        left_join(b_i, by = "movieId") %>%
-        left_join(b_u, by = "userId") %>%
-        mutate(pred = mu + b_i + b_u) %>%
-        pull(pred)
-      
-        return(myRMSE(predicted_ratings, myTest$rating))
-    })
+    rmses <<- sapply(lambdas, function(l){
+          mu <<- mean(myTrain$rating)
+          
+          b_i <<- myTrain %>% 
+            group_by(movieId) %>%
+            summarize(b_i = sum(rating - mu)/(n()+l))
+          
+          b_u <<- myTrain %>% 
+            left_join(b_i, by="movieId") %>%
+            group_by(userId) %>%
+            summarize(b_u = sum(rating - b_i - mu)/(n()+l))
+        
+          predicted_ratings <<- 
+            myTest %>% 
+            left_join(b_i, by = "movieId") %>%
+            left_join(b_u, by = "userId") %>%
+            mutate(pred = mu + b_i + b_u) %>%
+            pull(pred)
+          
+          sum(is.na(predicted_ratings))
+          rmse <- myRMSE(myTest$rating,predicted_ratings)
+          return(rmse)
+        })
     
     ## Save processed train and test data to files,
     ## so that they can be reloaded later, instead of created from scratch.
     saveWork(lambdasFile,lambdas,TRUE)
     saveWork(rmsesFile,rmses,TRUE)
-    
-    #free memory
-    rm(edx,validation,predicted_ratings,user_avgs,movie_avgs,movie_reg_avgs)
 }
-
+    
 if(!runningInScript){
-    lambdas <- readRDS(lambdasFile) 
-    rmses <- readRDS(rmsesFile)
+    lambdas <<- readRDS(lambdasFile) 
+    rmses <<- readRDS(rmsesFile)
 }
 
 qplot(lambdas, rmses)  
@@ -739,63 +778,32 @@ if(runningInScript){
     summary(results)
     
     # box and whisker plots to compare models
+    par(1,2)
     scales <- list(x=list(relation="free"), y=list(relation="free"))
     bwplot(results, scales=scales)
     
-    # dot plots of accuracy
-    scales <- list(x=list(relation="free"), y=list(relation="free"))
-    dotplot(results, scales=scales)
-    
-    # pairwise scatter plots of predictions to compare models
-    splom(results)
-    
-    
+    # print("second chart")
+    # # dot plots of accuracy
+    # #scales <- list(x=list(relation="free"), y=list(relation="free"))
+    # dotplot(results, scales=scales)
     # 
-    # # Create a Random Forest model with default parameters
-    # model1 <- randomForest(rating ~ ., data = myTrainSubset[colNames], importance = TRUE, mtry=6)
-    # model1
-    # print(model1)
-    
-    dart.parm <- list(booster = "dart", 
-                      rate_drop = 0.1, 
-                      nthread = 4, 
-                      eta = 0.1, 
-                      max_depth = 3, 
-                      subsample = 1, 
-                      eval_metric = "rmse")
-    rowNames <- rownames(myTrainSubset)
-    dart <- xgboost(data = as.matrix(myTrainSubset[,-1]), 
-                    label = rownames(myTrainSubset[,-1]), 
-                    params = dart.parm, 
-                    nrounds = 50, 
-                    verbose = 0, 
-                    seed = 2017)
-    colNames <- names(myTrainSubset[, -1])
-    colNames
-    pred1 <- predict(dart, as.matrix(myTrainSubset[, -1]))
-    pred2 <- predict(dart, as.matrix(myTest[colNames]))
-    roc(as.factor(myTrainSubset$rating), pred1)
-    # Area under the curve: 0.7734
-    roc(as.factor(myTest$rating), pred2)
-    # Area under the curve: 0.6517
+    # pairwise scatter plots of predictions to compare models
+   # splom(results)
     
     
-    ##ctree2 with CV
-      fitControl <- trainControl(method = 'cv', number=6,summaryFunction=defaultSummary)
-      set.seed(123)
-      Grid <- expand.grid(maxdepth = seq(10, 30,5),mincriterion=0.95)
-    
-      formula <- rating ~   userId + movieId + Drama + Comedy + Action
-      fit.ctree2CV <- train(formula, data=myTrainSubset, method = 'ctree2',
-                            trControl=fitControl,tuneGrid=Grid,metric='RMSE')
-      print(fit.ctree2CV)
-      predict <- predict(fit.ctree2CV, as.matrix(myTest[c("userId","movieId","Drama","Comedy","Action")]))
-      rmse <- myRMSE(myTest$rating,predict)
-      rmse
-      #results <- resamples(list(CTREE2=fit.ctree2CV))
+   
 }
 
+
 ```
+
+```{r dot_plot}
+ print("second chart")
+    # dot plots of accuracy
+    #scales <- list(x=list(relation="free"), y=list(relation="free"))
+    dotplot(results, scales=scales)
+```
+
 
 # Part 4) CONCLUSION
 
