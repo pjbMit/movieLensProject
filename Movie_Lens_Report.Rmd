@@ -127,7 +127,7 @@ consuming processing tasks.
 #as opposed to running in this script.
 
 runningInScript <-TRUE # TRUE/FALSE value to skip portions of the script,or load from files if running the report.
-#runningInScript <-FALSE  # uncomment this line when pasting this code to the Report Rmd file.
+runningInScript <-FALSE  # uncomment this line when pasting this code to the Report Rmd file.
 
 loadFromFile <- FALSE
 loadFromFile <- TRUE  ## Comment out this line if we don't want to reload the ojbects from files
@@ -478,7 +478,7 @@ if(runningInScript) {
     print("pre-processing completed.")
     glimpse(movieDataWithGenre)
     myTrain <<- movieDataWithGenre %>% filter(test==FALSE) %>% select (-test,-genres)
-    myTest  <<- movieDataWithGenre %>% filter(test==TRUE) %>% select (-test) 
+    myTest  <<- movieDataWithGenre %>% filter(test==TRUE)  %>% select (-test,-genres) 
     
     ## Save processed train and test data to files,
     ## so that they can be reloaded later, instead of created from scratch.
@@ -521,10 +521,21 @@ Here we show a few summary visualizations of the data.
 #cor(myTrain[,6],myTrain[,2])
 
 #Histogram of ratings
-hist(myTest[,24], main=names(myTrain)[24])
+x <- myTest[,23]
+n <- names(myTest)[23]
+is.numeric(x)
+hist(x, main=n)
+#Note: using myTest for the histogram instead of myTrain, 
+#because this data set is 1/10th as big, and for the purposes of 
+#histogram trends should have a very similar pattern to the Test data set which has 9 million observations.
 
 ##Shows a lot of 4's, and not many half-star ratings.
 
+```
+This histogram shows that 4 stars is the most popular rating, followed by 3 stars.
+It also shows that half-star ratings are less common than whole-star ratings.
+
+```{r Visualize_the_Data2}
 #Correlations
 t <- myTrain %>% select (-titleId)
 correlations <- cor(t[,1:22]) #calculate correlations
@@ -534,7 +545,7 @@ corrplot(correlations, method="circle") # create correlation plot
 ## Also shows that you rarely see movies such as Comedy Thrillers, or Action Dramas
 
 ```
-
+This correlation plot shows that certain genre's have a positive correlation with each other, while other's have a negative correlation.  This shows that Shows that there are a few popular movie groups such as Children Animation, and Action Adventure, where the two genre's are frequently both assiged to the same movie.  The negative correlations show that you rarely see movies on certain combinations of genres such as Comedy Thrillers, or Action Dramas.
 
 
 Next we move on to building a predictive model.
@@ -797,12 +808,19 @@ if(runningInScript){
 
 ```
 
+The heat map above shows that most of the variation in the ratings is within the five genres of Romance, Comedy, Thriller, Horror and Sci-Fi.  
+
+The Box and Whisker plot above shows that RPART algorithm tends to make more precise, yet less accurate predictions when compared to the TREEBAG algorith.  
+
+
 ```{r dot_plot}
  print("second chart")
     # dot plots of accuracy
     #scales <- list(x=list(relation="free"), y=list(relation="free"))
     dotplot(results, scales=scales)
 ```
+
+While the dot plot above clearly shows that TREEBAG algorithm has greater variability in the residual values than the RPART algorithm.
 
 
 # Part 4) CONCLUSION

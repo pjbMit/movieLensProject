@@ -464,7 +464,7 @@ if(runningInScript) {
     print("pre-processing completed.")
     glimpse(movieDataWithGenre)
     myTrain <<- movieDataWithGenre %>% filter(test==FALSE) %>% select (-test,-genres)
-    myTest  <<- movieDataWithGenre %>% filter(test==TRUE) %>% select (-test) 
+    myTest  <<- movieDataWithGenre %>% filter(test==TRUE)  %>% select (-test,-genres) 
     
     ## Save processed train and test data to files,
     ## so that they can be reloaded later, instead of created from scratch.
@@ -497,19 +497,27 @@ if(!runningInScript){
 
 Here we show a few summary visualizations of the data.
 
-
 ```{r Visualize_the_Data}
 
 
 #cor(myTrain[,6],myTrain[,2])
 
 #Histogram of ratings
-hist(myTest[,24], main=names(myTrain)[24])
+x <- myTest[,23]
+n <- names(myTest)[23]
+is.numeric(x)
+hist(x, main=n)
+#Note: using myTest for the histogram instead of myTrain, 
+#because this data set is 1/10th as big, and for the purposes of 
+#histogram trends should have a very similar pattern to the Test data set which has 9 million observations.
 
 ##Shows a lot of 4's, and not many half-star ratings.
 
+```
+
+```{r Visualize_the_Data2}
 #Correlations
-t <- myTrain %>% select (-titleId)
+t <- myTest %>% select (-titleId)
 correlations <- cor(t[,1:22]) #calculate correlations
 corrplot(correlations, method="circle") # create correlation plot
 ##Shows that there are a few popular movie groups
